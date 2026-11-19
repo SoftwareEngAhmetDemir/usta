@@ -93,14 +93,15 @@ Work like a senior frontend + backend + AI engineer.
 
 _Last updated 2026-11-19._
 - **Frontend: built** for every `frontend`-labelled KAN ticket (screens for all 4 roles; see Modules). typecheck, lint, 164 Vitest tests and 10 Playwright e2e all pass. E2E and `npm run dev:mock` use a **fake backend**; nothing has run against a real API or on a real phone yet.
-- **Backend: not started.** No `backend/` folder. The contract it must implement is `frontend/src/api/types.ts` + the API list below.
-- **Git:** everything is uncommitted on `main` (only "Initial commit" exists). Next commit should go on a branch, e.g. `KAN-31-frontend`.
+- **Backend: not started.** `backend/` holds only `.env` (local secrets, git-ignored) and `.env.example`. The contract it must implement is `frontend/src/api/types.ts` + the API list below.
+- **Database: ready.** MySQL 8.4 (Homebrew, `brew services start mysql@8.4`, runs on login) on `127.0.0.1:3306`. Databases `usta` (dev) and `usta_test` (pytest), both utf8mb4; app user `usta`@`localhost` has rights on those two only. Connection strings and passwords are in `backend/.env` (`DATABASE_URL`, `TEST_DATABASE_URL`, `MYSQL_ROOT_PASSWORD`, `SECRET_KEY`); read them from there via pydantic-settings, never hard-code or commit them. No tables yet: create them with Alembic migrations, not by hand. The user browses data with MySQL Workbench (`brew install --cask mysqlworkbench`).
+- **Git:** frontend + `.claude/` + CLAUDE.md committed on branch `init-frontend-react-with-ui-screens` (pushed to `origin`, GitHub `SoftwareEngAhmetDemir/usta`); no PR yet. Root `.gitignore` ignores `.env*` (except `.env.example`, `frontend/.env.mock`), Python caches, `.venv/` and `uploads/`.
 - **Jira:** these 26 tickets are **In Progress**, assigned to the user (frontend done, backend half missing): KAN-23, 24, 26, 28, 31, 32, 33, 34, 35, 36, 38, 39, 40, 45, 46, 50, 55, 56, 61, 62, 63, 65, 66, 71, 73, 74. All other tickets are To Do. Move a ticket to Done only when its "Done when" list is met end to end (real backend, tested).
 - **Try it:** `cd frontend && npm run dev:mock`, then tap a demo user (İşçi / Usta / Teknisyen / Patron). Videos and QR images don't load in mock mode (no media files).
 
 **Next steps (suggested order):**
-1. Commit the frontend on a branch and open a PR.
-2. Scaffold `backend/` (FastAPI, Pydantic v2, MySQL, pytest, mypy strict, ruff ANN401) per "Stack & layout".
+1. Open a PR for `init-frontend-react-with-ui-screens`; start backend work on a new branch from it (e.g. `KAN-24-backend-auth`).
+2. Scaffold `backend/` per "Stack & layout": FastAPI, Pydantic v2 + pydantic-settings (reads `backend/.env`), SQLAlchemy 2 async + `asyncmy` driver, Alembic (migrations in `backend/alembic/`), pytest against `usta_test`, mypy strict, ruff with ANN401. Python venv in `backend/.venv`. The Mac's system Python is 3.9: first `brew install python@3.12` (or `uv`) and create the venv with 3.12. Mount SQLAdmin at `/admin` (Vite already proxies `/api`, `/uploads`, `/admin` to `:8000`).
 3. Backend in ticket order: KAN-25/24 auth + roles → KAN-27/70 machines + machine page endpoint → KAN-29/30 QR → KAN-28 usta links → KAN-33/34 documents + outside videos → KAN-39 maintenance → KAN-66 alerts WebSocket → video upload/processing (KAN-37/74) → AI (KAN-42+, 58–60).
 4. As each endpoint lands: point Playwright `webServer` at uvicorn, drop the matching stub in `frontend/e2e/backend.ts`, test on a real Android + iPhone (camera: KAN-35, PDF `#page=`: KAN-45).
 
