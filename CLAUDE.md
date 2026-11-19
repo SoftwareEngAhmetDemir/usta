@@ -89,6 +89,21 @@ Work like a senior frontend + backend + AI engineer.
   CLAUDE.md was updated, then runs frontend typecheck/lint/test/test:e2e and backend ruff/mypy/pytest. On failure it
   sends Claude back to fix it (max 3 times, then Claude must report what is still failing).
 
+## Current status (update at the end of each working day)
+
+_Last updated 2026-11-19._
+- **Frontend: built** for every `frontend`-labelled KAN ticket (screens for all 4 roles; see Modules). typecheck, lint, 164 Vitest tests and 10 Playwright e2e all pass. E2E and `npm run dev:mock` use a **fake backend**; nothing has run against a real API or on a real phone yet.
+- **Backend: not started.** No `backend/` folder. The contract it must implement is `frontend/src/api/types.ts` + the API list below.
+- **Git:** everything is uncommitted on `main` (only "Initial commit" exists). Next commit should go on a branch, e.g. `KAN-31-frontend`.
+- **Jira:** these 26 tickets are **In Progress**, assigned to the user (frontend done, backend half missing): KAN-23, 24, 26, 28, 31, 32, 33, 34, 35, 36, 38, 39, 40, 45, 46, 50, 55, 56, 61, 62, 63, 65, 66, 71, 73, 74. All other tickets are To Do. Move a ticket to Done only when its "Done when" list is met end to end (real backend, tested).
+- **Try it:** `cd frontend && npm run dev:mock`, then tap a demo user (İşçi / Usta / Teknisyen / Patron). Videos and QR images don't load in mock mode (no media files).
+
+**Next steps (suggested order):**
+1. Commit the frontend on a branch and open a PR.
+2. Scaffold `backend/` (FastAPI, Pydantic v2, MySQL, pytest, mypy strict, ruff ANN401) per "Stack & layout".
+3. Backend in ticket order: KAN-25/24 auth + roles → KAN-27/70 machines + machine page endpoint → KAN-29/30 QR → KAN-28 usta links → KAN-33/34 documents + outside videos → KAN-39 maintenance → KAN-66 alerts WebSocket → video upload/processing (KAN-37/74) → AI (KAN-42+, 58–60).
+4. As each endpoint lands: point Playwright `webServer` at uvicorn, drop the matching stub in `frontend/e2e/backend.ts`, test on a real Android + iPhone (camera: KAN-35, PDF `#page=`: KAN-45).
+
 ## Architecture
 
 Frontend built; backend not scaffolded yet. Flow: page component → `useApi(path, poll?)` / feature `api.ts` →
@@ -149,5 +164,6 @@ Contract the frontend calls (all under `/api`, cookie session; types in `fronten
 
 After every code change, in the same task:
 - Update **Architecture / Modules / API / Decisions** so they describe the code as it is now.
+- Update **Current status** (what is done, git/Jira state, next steps) so the next session can pick up where this one stopped.
 - Remove entries for deleted code. Do not keep a changelog here; git history has that.
 - Keep it short: one line per item, details belong in the code.
