@@ -1,0 +1,1 @@
+export { QaSection } from './QaSection';

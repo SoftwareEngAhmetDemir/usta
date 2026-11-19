@@ -1,0 +1,1 @@
+export { QaCard } from './QaCard';
