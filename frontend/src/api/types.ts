@@ -134,6 +134,17 @@ export interface MachineActions {
   record_video: boolean;
   upload_document: boolean;
   record_maintenance: boolean;
+  archive: boolean; // "Makineyi kaldır": the machine's ustas or the patron (KAN-27)
+}
+
+/** POST /machines → {id}: ustas and the patron add machines; an usta becomes its usta (KAN-27). */
+export interface MachineIn {
+  code: string;
+  name: string;
+  type: string;
+  model: string;
+  serial: string;
+  location: string;
 }
 
 export interface MachinePage {

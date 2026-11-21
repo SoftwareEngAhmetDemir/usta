@@ -9,6 +9,8 @@ export default defineConfig(({ mode }) => ({
   plugins: [react()],
   server: {
     host: true,
+    // The phone opens the app over the VS Code forwarded port (https, needed for the camera); Vite blocks unknown hosts.
+    allowedHosts: ['.devtunnels.ms'],
     // `npm run dev:mock` fakes the API in the browser: no proxy, so its fixture media URLs never hit a real backend.
     proxy:
       mode === 'mock'

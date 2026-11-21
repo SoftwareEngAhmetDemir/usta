@@ -47,7 +47,7 @@ export const machinePage: MachinePage = {
   ],
   maintenance: [maintenanceRecord],
   questions: [qaEntry],
-  actions: { ask: true, record_video: false, upload_document: false, record_maintenance: false },
+  actions: { ask: true, record_video: false, upload_document: false, record_maintenance: false, archive: false },
 };
 
 export const videoDetail: VideoDetail = {

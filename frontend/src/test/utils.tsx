@@ -52,3 +52,12 @@ export function renderAuthed(ui: ReactElement, url = '/', pattern = '*'): Render
   );
 }
 
+
+/** A phone browser on https with a back camera; BarcodeDetector keeps seeing `qr` (null = no BarcodeDetector, as on iPhone Safari). */
+export function stubQrCamera(qr: string | null, camera: () => Promise<MediaStream> = async () => ({ getTracks: () => [] }) as unknown as MediaStream) {
+  vi.stubGlobal('isSecureContext', true);
+  vi.stubGlobal('navigator', { ...navigator, mediaDevices: { getUserMedia: vi.fn(camera) } });
+  if (qr !== null) vi.stubGlobal('BarcodeDetector', class { detect = async () => [{ rawValue: qr }]; });
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+  vi.spyOn(HTMLVideoElement.prototype, 'videoWidth', 'get').mockReturnValue(640);
+}

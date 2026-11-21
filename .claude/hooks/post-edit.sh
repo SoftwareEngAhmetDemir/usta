@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # PostToolUse(Edit|Write|MultiEdit): record the touched file for the Stop check, and reject
 # explicit `any` (TypeScript) / `Any` (Python) types.
-# shortcut: files changed via Bash (sed, codegen) are not recorded; extend the matcher if that becomes common.
+# Files changed via Bash are caught by verify.sh (modified since session-start.sh), not here.
 set -uo pipefail
 input=$(cat)
 file=$(jq -r '.tool_input.file_path // empty' <<<"$input")

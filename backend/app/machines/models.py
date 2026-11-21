@@ -29,6 +29,8 @@ class Machine(Base):
     location: Mapped[str] = mapped_column(String(200), default="")
     photo: Mapped[str | None] = mapped_column(String(255), default=None)  # path under uploads/
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    # KAN-27: "removing" a machine archives it: gone from lists, history kept; clear it in /admin to restore.
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
 
     ustas: Mapped[list[User]] = relationship(secondary=machine_ustas, lazy="selectin", order_by=User.name)
 

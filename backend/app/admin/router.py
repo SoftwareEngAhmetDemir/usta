@@ -64,9 +64,7 @@ class AdminUser(BaseModel):
     machines: list[PersonRef]
 
 
-async def _count(
-    db: AsyncSession, model: type[Video] | type[Document] | type[Machine] | type[MaintenanceRecord]
-) -> int:
+async def _count(db: AsyncSession, model: type[Video] | type[Document] | type[MaintenanceRecord]) -> int:
     return await db.scalar(select(func.count()).select_from(model)) or 0
 
 
@@ -98,7 +96,7 @@ async def admin_machines(
     _: PatronUser, db: SessionDep, q: Annotated[str, Query(max_length=100)] = ""
 ) -> AdminMachineList:
     """Stats + machine table; `q` searches code, name, serial and location."""
-    query = select(Machine).order_by(Machine.name)
+    query = select(Machine).where(Machine.archived_at.is_(None)).order_by(Machine.name)
     if q.strip():
         pattern = _like(q.strip())
         query = query.where(
@@ -108,7 +106,7 @@ async def admin_machines(
     videos, documents, last = await _counts(db, Video), await _counts(db, Document), await _last_maintenance(db)
     answered = await db.scalar(select(func.count()).where(Question.status == QuestionStatus.answered)) or 0
     stats = AdminStats(
-        machines=await _count(db, Machine),
+        machines=await db.scalar(select(func.count()).where(Machine.archived_at.is_(None))) or 0,
         videos=await _count(db, Video),
         documents=await _count(db, Document),
         answered_questions=answered,
@@ -134,7 +132,7 @@ async def admin_machines(
 @router.get("/users", response_model=list[AdminUser])
 async def admin_users(_: PatronUser, db: SessionDep) -> list[AdminUser]:
     users = await db.scalars(select(User).order_by(User.name))
-    machines = await db.scalars(select(Machine).order_by(Machine.name))
+    machines = await db.scalars(select(Machine).where(Machine.archived_at.is_(None)).order_by(Machine.name))
     by_usta: dict[int, list[PersonRef]] = {}
     for m in machines:
         for u in m.ustas:
@@ -155,7 +153,7 @@ async def admin_users(_: PatronUser, db: SessionDep) -> list[AdminUser]:
 
 @router.get("/qr-stickers.pdf")
 async def sticker_pdf(_: PatronUser, db: SessionDep, ctx: CtxDep) -> Response:
-    machines = list(await db.scalars(select(Machine).order_by(Machine.code)))
+    machines = list(await db.scalars(select(Machine).where(Machine.archived_at.is_(None)).order_by(Machine.code)))
     return Response(
         qr.sticker_sheet(machines, ctx.settings.public_url),
         media_type="application/pdf",

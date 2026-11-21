@@ -31,8 +31,11 @@ async def test_lookup_by_sticker_code(client_as: ClientAs, make_user: MakeUser, 
     machine = await make_machine()
     c = await client_as(await make_user())
     assert (await c.get(f"/api/machines/lookup?code={machine.code}")).json() == {"id": machine.id}
-    missing = await c.get("/api/machines/lookup?code=YOK-1")
-    assert missing.status_code == 404 and missing.json() == {"detail": "Bu kodla makine bulunamadı."}
+    scanned = await c.get("/api/machines/lookup", params={"code": f"https://old-tunnel.example/m/{machine.id}"})
+    assert scanned.json() == {"id": machine.id}
+    for unknown in ("YOK-1", "https://x.example/m/999999"):
+        res = await c.get("/api/machines/lookup", params={"code": unknown})
+        assert res.status_code == 404 and res.json() == {"detail": "Bu kodla makine bulunamadı."}
 
 
 async def test_machine_page_shape_and_empty_sections(
@@ -61,9 +64,9 @@ async def test_actions_depend_on_role_and_assignment(
     my_usta, other_usta = await make_user(Role.usta), await make_user(Role.usta)
     machine = await make_machine(ustas=[my_usta])
     expected = {
-        Role.worker: (True, False, False, False),
-        Role.technician: (True, False, False, True),
-        Role.patron: (True, True, True, True),
+        Role.worker: (True, False, False, False, False),
+        Role.technician: (True, False, False, True, False),
+        Role.patron: (True, True, True, True, True),
     }
     for role, flags in expected.items():
         page = (await (await client_as(await make_user(role))).get(f"/api/machines/{machine.id}")).json()
@@ -72,6 +75,7 @@ async def test_actions_depend_on_role_and_assignment(
     assert not (await (await client_as(other_usta)).get(f"/api/machines/{machine.id}")).json()["actions"][
         "record_video"
     ]
+    assert (await (await client_as(my_usta)).get(f"/api/machines/{machine.id}")).json()["actions"]["archive"]
 
 
 async def test_my_machines_for_usta_and_patron(
@@ -124,3 +128,61 @@ async def test_qr_svg_and_sticker_pdf_for_patron(
     worker = await client_as(await make_user())
     assert (await worker.get(f"/api/machines/{machine.id}/qr.svg")).status_code == 403
     assert (await worker.get("/api/admin/qr-stickers.pdf")).status_code == 403
+
+
+NEW = {
+    "code": " cnc-7 ",
+    "name": "CNC Torna",
+    "type": "Torna",
+    "model": "T-200",
+    "serial": "X1",
+    "location": "Atölye B",
+}
+
+
+async def test_usta_adds_a_machine_and_becomes_its_usta(client_as: ClientAs, make_user: MakeUser) -> None:
+    usta = await make_user(Role.usta)
+    c = await client_as(usta)
+    res = await c.post("/api/machines", json=NEW)
+    assert res.status_code == 201
+    machine_id = res.json()["id"]
+    assert (await c.get("/api/me/machines")).json() == [{"id": machine_id, "code": "CNC-7", "name": "CNC Torna"}]
+    page = (await c.get(f"/api/machines/{machine_id}")).json()
+    assert [u["id"] for u in page["ustas"]] == [usta.id] and page["machine"]["location"] == "Atölye B"
+    again = await c.post("/api/machines", json={**NEW, "code": "CNC-7"})
+    assert again.status_code == 409 and again.json() == {"detail": "Bu kodla bir makine zaten var."}
+    assert (await c.post("/api/machines", json={**NEW, "code": "C2", "name": " "})).status_code == 422
+
+
+async def test_patron_adds_a_machine_without_ustas_others_may_not(client_as: ClientAs, make_user: MakeUser) -> None:
+    patron = await client_as(await make_user(Role.patron))
+    machine_id = (await patron.post("/api/machines", json=NEW)).json()["id"]
+    assert (await patron.get(f"/api/machines/{machine_id}")).json()["ustas"] == []
+    for role in (Role.worker, Role.technician):
+        res = await (await client_as(await make_user(role))).post("/api/machines", json={**NEW, "code": "Z1"})
+        assert res.status_code == 403, role
+
+
+async def test_archived_machine_leaves_lists_but_keeps_its_page(
+    client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine
+) -> None:
+    usta, other_usta = await make_user(Role.usta), await make_user(Role.usta)
+    machine = await make_machine(ustas=[usta])
+    for role in (Role.worker, Role.technician):
+        res = await (await client_as(await make_user(role))).post(f"/api/machines/{machine.id}/archive")
+        assert res.status_code == 403, role
+    assert (await (await client_as(other_usta)).post(f"/api/machines/{machine.id}/archive")).status_code == 403
+
+    c = await client_as(usta)
+    assert (await c.post(f"/api/machines/{machine.id}/archive")).status_code == 204
+    assert (await c.get("/api/me/machines")).json() == []
+    assert (await c.get(f"/api/ustas/{usta.id}")).json()["machines"] == []
+    assert (await c.get(f"/api/machines/lookup?code={machine.code}")).status_code == 404
+    page = (await c.get(f"/api/machines/{machine.id}")).json()  # old links and history still open
+    assert page["machine"]["id"] == machine.id and page["actions"]["archive"] is False
+    assert (await c.post(f"/api/machines/{machine.id}/archive")).status_code == 404
+
+    patron = await client_as(await make_user(Role.patron))
+    assert (await patron.get("/api/admin/machines")).json()["machines"] == []
+    other = await make_machine()
+    assert (await patron.post(f"/api/machines/{other.id}/archive")).status_code == 204

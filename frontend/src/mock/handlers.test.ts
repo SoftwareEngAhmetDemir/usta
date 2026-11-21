@@ -10,6 +10,18 @@ function loggedIn(login: string): MockDb {
 }
 
 describe('mock backend', () => {
+  it('lets an usta add a machine and remove it from the lists (KAN-27)', () => {
+    const db = loggedIn('usta');
+    const res = call(db, 'POST', '/machines', { code: 'cnc-7', name: 'CNC Torna', type: '', model: '', serial: '', location: '' });
+    expect(res.status).toBe(201);
+    const { id } = res.body as { id: number };
+    expect(call(db, 'GET', '/me/machines').body).toContainEqual({ id, code: 'CNC-7', name: 'CNC Torna' });
+    expect(call(db, 'POST', '/machines', { code: 'CNC-7', name: 'x' }).status).toBe(409);
+    expect(call(db, 'POST', `/machines/${id}/archive`).status).toBe(204);
+    expect(call(db, 'GET', '/me/machines').body).not.toContainEqual({ id, code: 'CNC-7', name: 'CNC Torna' });
+    expect(call(loggedIn('isci'), 'POST', '/machines', { code: 'Z', name: 'Z' }).status).toBe(403);
+  });
+
   it('logs in demo users by name and rejects others', () => {
     const db = seed();
     expect(call(db, 'GET', '/auth/me').status).toBe(401);

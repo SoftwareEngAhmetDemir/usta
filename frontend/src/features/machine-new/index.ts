@@ -1,0 +1,1 @@
+export { NewMachinePage } from './NewMachinePage';

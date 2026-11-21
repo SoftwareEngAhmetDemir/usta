@@ -9,14 +9,18 @@ Follow every step. The Stop hook (`.claude/hooks/verify.sh`) blocks finishing wh
 
 1. **Context**: CLAUDE.md is already loaded. Re-read its Architecture, Modules, API and Decisions sections for the area you touch, then read the actual files, because CLAUDE.md can lag the code.
 2. **Impact**: for anything beyond a one-file local change, run the `impact-analyzer` agent with the planned change. Every "Breaks" and "FE↔BE contract" item becomes part of the task.
-3. **Design**: pick the smallest design that fits existing patterns. Grep for an existing helper/component first. For new reusable pieces follow the `reusable-component` skill. On the frontend, list the components before coding: the feature gets its own folder `frontend/src/features/<feature>/`, each component in its own `components/<Name>/` folder, one component per file, at most 150 lines (the hook rejects longer files). Backend first when the API changes: schema → route → service → tests, then frontend types/client → UI.
+3. **Design**: pick the smallest design that fits existing patterns. Grep for an existing helper/component first. For new reusable pieces follow the `reusable-component` skill. On the frontend, list the components before coding: the feature gets its own folder `frontend/src/features/<feature>/`, each component in its own `components/<Name>/` folder, one component per file, at most 150 lines (the hook rejects longer files). Backend first when the API changes: model + migration → schema → service → route → tests, then frontend `types.ts` → feature `api.ts` → UI, plus the fakes that mirror the contract (`src/mock/handlers.ts`, `e2e/backend.ts`, `src/test/fixtures.ts`).
 4. **Implement**: TS with no `any`; Python fully annotated with no `Any`; Pydantic at API boundaries; update all callers found in step 2 in the same change.
 5. **Unit tests**: frontend `*.test.tsx` beside the code (Vitest); backend `backend/tests/**/test_*.py` (pytest). Delete tests of removed code. Use the `test-writer` agent for larger changes.
-6. **E2E**: add/update `frontend/e2e/*.spec.ts` (Playwright, UI + real API) for every affected user flow.
+6. **E2E**: add/update `frontend/e2e/*.spec.ts` for every affected user flow. They run against the stub backend in `e2e/backend.ts` (it fakes `/api` and `/uploads`; nothing may reach the real :8000).
 7. **Verify**:
    - `cd frontend && npm run typecheck && npm run lint && npm test && npm run test:e2e`
-   - `cd backend && ruff check . && mypy . && pytest -q`
+   - `cd backend && .venv/bin/ruff check . && .venv/bin/ruff format --check . && .venv/bin/mypy . && .venv/bin/pytest -q`
+   - Backend change touching real I/O (DB, files, ffmpeg, WebSocket): also start uvicorn on a spare port against `usta_test`
+     (`DATABASE_URL=$TEST_DATABASE_URL .venv/bin/uvicorn app.main:app --port 8001`) and hit the endpoints with curl/httpx;
+     empty `usta_test` afterwards. Never test against the user's dev DB or the `./dev.sh` they have running on :8000/:5173.
+   - Model change: `alembic upgrade head` on the dev DB only after the migration was reviewed (step 3).
    Fix root causes. Never weaken a test or add `any`/`Any`/`@ts-ignore`/`# type: ignore` to pass.
 8. **Review**: for multi-file changes run the `ts-reviewer` agent and fix its findings.
-9. **CLAUDE.md**: update Architecture / Modules / API / Decisions to describe the *current* logic (not a changelog; git has history). Remove entries for deleted code.
+9. **CLAUDE.md**: edit it with the Edit tool (the Stop hook also notices Bash edits once the SessionStart hook is registered). Update Architecture / Modules / API / Decisions to describe the *current* logic (not a changelog; git has history). Remove entries for deleted code.
 10. **Report**: what changed, impact handled, tests added, command results, anything left undone.

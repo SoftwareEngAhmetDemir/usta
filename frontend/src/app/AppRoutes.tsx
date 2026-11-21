@@ -4,6 +4,7 @@ import { AlertsPage, AlertsProvider } from '../features/alerts';
 import { AskPage } from '../features/ask';
 import { AuthProvider, LoginPage, RegisterPage, RequireAuth } from '../features/auth';
 import { DocumentPage } from '../features/documents';
+import { NewMachinePage } from '../features/machine-new';
 import { MachinePage } from '../features/machine-page';
 import { MaintenanceFormPage, TechHomePage } from '../features/maintenance';
 import { MyQuestionsPage } from '../features/my-questions';
@@ -23,6 +24,7 @@ export function AppRoutes() {
         <Route element={<RequireAuth><AlertsProvider><AppLayout /></AlertsProvider></RequireAuth>}>
           <Route index element={<HomeRedirect />} />
           <Route path="scan" element={<ScanPage />} />
+          <Route path="machines/new" element={<NewMachinePage />} />
           <Route path="m/:machineId" element={<MachinePage />} />
           <Route path="m/:machineId/ask" element={<AskPage />} />
           <Route path="m/:machineId/maintenance" element={<MaintenanceFormPage />} />

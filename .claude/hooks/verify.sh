@@ -1,20 +1,29 @@
 #!/usr/bin/env bash
 # Stop: if this session edited frontend/ (TS) or backend/ (Python) source, require tests for that side
 # and a CLAUDE.md update, then run typecheck/lint/unit/e2e. Blocks finishing (max 3 times) until they pass.
+# Sees Edit/Write (post-edit.sh) and Bash edits (files newer than the session-start.sh mark).
 set -uo pipefail
 input=$(cat)
 session=$(jq -r '.session_id // "default"' <<<"$input")
 state="${TMPDIR:-/tmp}/claude-changes-$session"
-[ -s "$state/files" ] || exit 0
 root="${CLAUDE_PROJECT_DIR:-$PWD}"
 cd "$root" || exit 0
 
-files=$(sort -u "$state/files")
+# Changed files = recorded by post-edit.sh (Edit/Write) + anything modified since session-start.sh (Bash edits).
+changed_since_start() {
+  [ -f "$state/start" ] || return 0
+  find frontend/src frontend/e2e backend/app backend/tests backend/migrations CLAUDE.md -newer "$state/start" \
+    -type f -not -path '*/__pycache__/*' -not -path '*/node_modules/*' 2>/dev/null
+}
+files=$( { cat "$state/files" 2>/dev/null; changed_since_start; } | sort -u | grep -v '^$' )
+[ -n "$files" ] || exit 0
+# Passed or given up: start a fresh baseline, so the next round only checks what changes after this.
+reset() { rm -f "$state/files" "$state/blocks"; touch "$state/start"; }
 fe_test='^frontend/.*\.(test|spec)\.[cm]?tsx?$'
 be_test='^backend/(.*/)?(tests?/.*|test_[^/]*|[^/]*_test)\.py$'
 fe_src=$(grep -E '^frontend/.*\.[cm]?tsx?$' <<<"$files" | grep -vE "\.d\.ts$|$fe_test|\.config\.[cm]?ts$" || true)
 be_src=$(grep -E '^backend/.*\.py$' <<<"$files" | grep -vE "$be_test|(^|/)(alembic|migrations)/|conftest\.py$" || true)
-if [ -z "$fe_src$be_src" ]; then rm -rf "$state"; exit 0; fi
+if [ -z "$fe_src$be_src" ]; then reset; exit 0; fi
 
 problems=""
 add() { problems+="- $1"$'\n'; }
@@ -53,11 +62,11 @@ if [ -n "$be_src" ]; then
   done
 fi
 
-if [ -z "$problems" ]; then rm -rf "$state"; exit 0; fi
+if [ -z "$problems" ]; then reset; exit 0; fi
 
 n=$(( $(cat "$state/blocks" 2>/dev/null || echo 0) + 1 ))
 if [ "$n" -gt 3 ]; then
-  rm -rf "$state"  # give up so Claude can't loop forever; it must report the failures to the user
+  reset  # give up so Claude can't loop forever; it must report the failures to the user
   exit 0
 fi
 echo "$n" > "$state/blocks"

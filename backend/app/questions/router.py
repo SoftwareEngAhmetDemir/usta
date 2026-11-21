@@ -132,7 +132,8 @@ async def usta_profile(usta_id: int, user: CurrentUser, db: SessionDep) -> UstaP
     usta = await db.get(User, usta_id)
     if usta is None or usta.role != Role.usta:
         raise not_found("Usta")
-    machines = await db.scalars(select(Machine).where(Machine.ustas.any(User.id == usta.id)).order_by(Machine.name))
+    mine = select(Machine).where(Machine.ustas.any(User.id == usta.id), Machine.archived_at.is_(None))
+    machines = await db.scalars(mine.order_by(Machine.name))
     answered = await service.answered_on(db, usta_id=usta.id)
     loc = await service.localizer(db, answered, user.language)
     return UstaProfile(

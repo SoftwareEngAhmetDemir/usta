@@ -11,6 +11,7 @@ class MachineActions(BaseModel):
     record_video: bool
     upload_document: bool
     record_maintenance: bool
+    archive: bool
 
 
 def is_usta_of(user: User, machine: Machine) -> bool:
@@ -24,6 +25,7 @@ def actions(user: User, machine: Machine) -> MachineActions:
         record_video=patron or is_usta_of(user, machine),
         upload_document=patron,
         record_maintenance=patron or user.role == Role.technician,
+        archive=machine.archived_at is None and (patron or is_usta_of(user, machine)),
     )
 
 

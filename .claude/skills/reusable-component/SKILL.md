@@ -94,129 +94,39 @@ export function Button({ variant = 'primary', loading = false, icon, children, d
 - Semantic HTML, keyboard support, visible focus, labels.
 - No fetching inside presentational components.
 
-## Frontend: typed API client + hook
-```ts
-// frontend/src/api/client.ts
-export class ApiError extends Error {
-  constructor(readonly status: number, readonly detail: unknown) { super(`API ${status}`); }
-}
+## Frontend: API calls and hooks (reuse these, don't write new ones)
+- `src/api/client.ts`: `request<T>`, `postJson`, `postForm`, `ApiError`, `errorMessage` (shows the backend's Turkish
+  `detail`). `src/api/upload.ts`: `uploadWithProgress` (XHR, progress, cookie). `useApi(path, poll?)` for GETs (aborts on
+  unmount, keeps data on a failed background refresh), `useAction` for mutations.
+- Feature calls live in `features/<feature>/api.ts`; types come from `src/api/types.ts`, the FE↔BE contract.
+- A contract change updates **four** places in the same change: `types.ts`, `src/mock/handlers.ts` (dev:mock),
+  `e2e/backend.ts` (e2e stubs) and `src/test/fixtures.ts` if the example data changes shape.
 
-export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${import.meta.env.VITE_API_URL}${path}`, {
-    ...init,
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
-  });
-  const body: unknown = await res.json().catch(() => null);
-  if (!res.ok) throw new ApiError(res.status, body);
-  return body as T; // shortcut: trusts the backend schema; generate types from /openapi.json to keep them in sync
-}
-```
-```ts
-// frontend/src/features/users/useUsers.ts
-import { useEffect, useState } from 'react';
-import { request } from '../../api/client';
-import type { User } from '../../api/types';
+## Backend: router + service (this repo's real pattern)
+Look at `app/maintenance/` or `app/questions/` before writing a new feature; copy their shape.
+- `app/<feature>/models.py` (SQLAlchemy 2, `Mapped[...]`, naive-UTC `DateTime` with `default=utcnow`),
+  `service.py` (Pydantic out-models + plain async functions taking `AsyncSession`), `router.py` (thin), registered in
+  `app/main.py` `API_ROUTERS`; new models imported in `app/models.py` so Alembic sees them.
+- Dependencies: `SessionDep` (request-scoped session), `CtxDep` (`AppContext`: `settings`, `sessionmaker`, `ai`, `jobs`,
+  `hub`), `CurrentUser` / `PatronUser` / `require_role(...)`. Permissions per machine: `app/machines/permissions.py`
+  (`actions`, `can_answer`), never ad-hoc role checks in a router.
+- Errors: `raise not_found("Makine")` / `forbidden()` / `HTTPException(code, "<Turkish sentence>")`. Validation messages
+  in Turkish via `AfterValidator`/`BeforeValidator` raising `ValueError` (the 422 handler shows its text).
+- Timestamps out: `UtcDateTime`. Text in a language: `LocalizedText` via `localized()` / `Localizer`.
+- Files: `core/storage.save_upload` / `abs_path` / `url`; never build upload paths by hand.
+- Slow work (ffmpeg, AI, translations): `ctx.jobs.spawn(job(ctx, id), name=...)`. A job opens its own session with
+  `async with ctx.sessionmaker() as db`, never reuses the request's. State lives in MySQL so it survives restarts.
+- After `await db.rollback()` every loaded ORM object is expired, and touching an attribute raises in async: keep ids in
+  plain variables before the risky call, or re-load with `db.get(Model, id, populate_existing=True)`.
+- Live alerts: `alerts.service.notify(db, ctx.hub, user_ids, text, path)`; the backend decides `path`.
+- Schema change: edit models → `alembic revision --autogenerate` **against `usta_test` at head** (not the dev DB, which
+  may hold hand-made tables) → read the file; any `op.drop_*` needs the user's OK → `alembic upgrade head`.
 
-type State = { status: 'loading' } | { status: 'ok'; data: User[] } | { status: 'error'; error: Error };
-
-export function useUsers(): State {
-  const [state, setState] = useState<State>({ status: 'loading' });
-  useEffect(() => {
-    const ctrl = new AbortController();
-    request<User[]>('/users', { signal: ctrl.signal })
-      .then((data) => setState({ status: 'ok', data }))
-      .catch((error: unknown) => {
-        if (!ctrl.signal.aborted) setState({ status: 'error', error: error instanceof Error ? error : new Error(String(error)) });
-      });
-    return () => ctrl.abort();
-  }, []);
-  return state;
-}
-```
-- TS API types mirror the FastAPI schemas; prefer generating them (`openapi-typescript` from `/openapi.json`). If the project already uses TanStack Query, use it instead of hand-written hooks.
-
-## Backend: FastAPI router + service
-```python
-# backend/app/users/schemas.py
-from pydantic import BaseModel, EmailStr, Field
-
-class UserCreate(BaseModel):
-    email: EmailStr
-    name: str = Field(min_length=1)
-
-class UserOut(BaseModel):
-    id: int
-    email: EmailStr
-    name: str
-```
-```python
-# backend/app/users/service.py
-from typing import Protocol
-from .schemas import UserCreate, UserOut
-
-class UserRepo(Protocol):
-    async def find_by_email(self, email: str) -> UserOut | None: ...
-    async def insert(self, data: UserCreate) -> UserOut: ...
-
-class EmailTakenError(Exception):
-    pass
-
-class UserService:
-    def __init__(self, repo: UserRepo) -> None:
-        self._repo = repo
-
-    async def create(self, data: UserCreate) -> UserOut:
-        if await self._repo.find_by_email(data.email):
-            raise EmailTakenError(data.email)
-        return await self._repo.insert(data)
-```
-```python
-# backend/app/users/router.py
-from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
-from .deps import get_user_service
-from .schemas import UserCreate, UserOut
-from .service import EmailTakenError, UserService
-
-router = APIRouter(prefix="/users", tags=["users"])
-
-@router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-async def create_user(data: UserCreate, service: Annotated[UserService, Depends(get_user_service)]) -> UserOut:
-    try:
-        return await service.create(data)
-    except EmailTakenError:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail="Email already registered")
-```
-- Feature-folder layout (`app/<feature>/{schemas,service,router,deps,models}.py`).
-- Handlers thin; business logic in services; I/O behind `Protocol`s injected via `Depends` (tests use `app.dependency_overrides`).
-- No blocking I/O inside `async def`. Settings via `pydantic-settings`, never `os.environ` scattered around.
-
-## AI / LLM module (backend)
-```python
-# backend/app/ai/summarize.py
-from typing import Protocol
-from pydantic import BaseModel, Field, ValidationError
-
-class LlmClient(Protocol):
-    async def complete(self, *, system: str, user: str) -> str: ...
-
-class Summary(BaseModel):
-    title: str
-    bullets: list[str] = Field(max_length=5)
-
-SUMMARY_PROMPT_V1 = 'Return only JSON: {"title": string, "bullets": string[] (max 5)}.'
-
-class SummaryParseError(Exception):
-    pass
-
-async def summarize(llm: LlmClient, text: str) -> Summary:
-    raw = await llm.complete(system=SUMMARY_PROMPT_V1, user=text)
-    try:
-        return Summary.model_validate_json(raw)  # model output is untrusted
-    except ValidationError as e:
-        raise SummaryParseError(str(e)) from e
-```
-- Model client behind a `Protocol`; tests use a fake. Prompts are versioned constants next to their parser.
-- Always schema-validate output; handle timeouts, retries with backoff and refusals explicitly.
-- Stream to the frontend via `StreamingResponse`/SSE when latency matters.
-- Never feed user text into tool calls, SQL or shell without validation (prompt injection).
+## AI / LLM (backend)
+- Everything goes through `app.ai.protocol.AI` (one Protocol: transcribe, translate, embed, speak, answer, summarize,
+  read_image). `GeminiAI` implements it; `DisabledAI` (no key) raises `AIUnavailableError`; tests use `tests/fakes.FakeAI`.
+- New AI capability: add the method to the Protocol, `DisabledAI`, `GeminiAI` and `FakeAI`; prompt text in `prompts.py`.
+- Output is untrusted: JSON schema in the request, then `Model.model_validate_json`, else `AIUnavailableError`.
+- Callers catch `AIUnavailableError` and fall back to a **safe** result (ask → `not_found`, summary → `none`), never a guess.
+- Pages never call the AI while rendering: translate/summarize in a job after the write, read stored results.
+- Never let model output pick files, SQL or shell arguments.

@@ -9,6 +9,9 @@ cd "$(dirname "$0")"
 }
 [ -x frontend/node_modules/.bin/vite ] || { echo "frontend deps missing: cd frontend && npm install" >&2; exit 1; }
 
+# Bring the dev DB to the latest schema first (same as a deploy), so new columns never crash the server.
+(cd backend && .venv/bin/alembic upgrade head) || exit 1
+
 (cd backend && exec .venv/bin/uvicorn app.main:app --reload --port 8000) &
 backend=$!
 (cd frontend && exec node_modules/.bin/vite) & # same as `npm run dev`, minus npm so the signal reaches Vite

@@ -1,9 +1,11 @@
-import { Link, useLocation, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import type { MachinePage as MachinePageData } from '../../api';
-import { useApi } from '../../api';
+import { useAction, useApi } from '../../api';
 import { AsyncView } from '../../components/AsyncView';
 import { ErrorMessage } from '../../components/ErrorMessage';
 import { PageTitle } from '../../components/PageTitle';
+import { archiveMachine } from './api';
+import { ArchiveMachine } from './components/ArchiveMachine';
 import { DocumentList } from './components/DocumentList';
 import { LanguageBar } from './components/LanguageBar';
 import { MachineHeader } from './components/MachineHeader';
@@ -25,6 +27,9 @@ export function MachinePage() {
   const { state, reload } = useApi<MachinePageData>(`/machines/${machineId}`);
   const lang = useLanguageSwitch(reload);
   const languageName = lang.languages.find((l) => l.code === lang.current)?.name ?? lang.current;
+  const navigate = useNavigate();
+  const archive = useAction(archiveMachine);
+  const remove = async (id: number) => { if (await archive.run(id)) navigate('/', { replace: true }); };
 
   return (
     <>
@@ -46,6 +51,7 @@ export function MachinePage() {
             <DocumentList machineId={page.machine.id} documents={page.documents} canUpload={page.actions.upload_document} />
             <MaintenanceSection machineId={page.machine.id} records={page.maintenance} canRecord={page.actions.record_maintenance} highlightId={highlight} />
             <QaSection questions={page.questions} />
+            {page.actions.archive && <ArchiveMachine pending={archive.pending} error={archive.error} onConfirm={() => void remove(page.machine.id)} />}
           </>
         )}
       </AsyncView>

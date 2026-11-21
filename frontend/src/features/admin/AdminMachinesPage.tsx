@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import type { AdminMachineList } from '../../api';
 import { useApi } from '../../api';
 import { AsyncView } from '../../components/AsyncView';
@@ -26,6 +26,7 @@ export function AdminMachinesPage() {
     <>
       <PageTitle title="Yönetim" />
       <AdminTabs />
+      <Link className="btn" data-variant="secondary" to="/machines/new">+ Makine ekle</Link>
       <div className="field">
         <label className="sr-only" htmlFor="admin-q">Makine ara</label>
         <input id="admin-q" type="search" placeholder="Makine adıyla ara…" value={q} onChange={(e) => setQ(e.target.value)} />

@@ -21,10 +21,10 @@ const fail = (status: number, detail: string): MockResponse => ({ status, body: 
 const now = () => new Date().toISOString();
 
 const ACTIONS: Record<Role, MachineActions> = {
-  worker: { ask: true, record_video: false, upload_document: false, record_maintenance: false },
-  usta: { ask: true, record_video: true, upload_document: false, record_maintenance: false },
-  technician: { ask: true, record_video: false, upload_document: false, record_maintenance: true },
-  patron: { ask: true, record_video: true, upload_document: true, record_maintenance: true },
+  worker: { ask: true, record_video: false, upload_document: false, record_maintenance: false, archive: false },
+  usta: { ask: true, record_video: true, upload_document: false, record_maintenance: false, archive: true },
+  technician: { ask: true, record_video: false, upload_document: false, record_maintenance: true, archive: false },
+  patron: { ask: true, record_video: true, upload_document: true, record_maintenance: true, archive: true },
 };
 const PREP_LABELS = ['Çeviri', 'Altyazı', 'Ses ayrıştırma', 'Dublaj (ustanın sesiyle)', 'Zamanlama ve miksaj'];
 const PROC_LABELS = ['Yüklendi', 'Sıkıştırılıyor (H.264)', 'Konuşma metne dönüştürülüyor', 'Aramaya ekleniyor'];
@@ -111,8 +111,26 @@ export function handle(db: MockDb, req: MockRequest): MockResponse {
     case 'POST /auth/logout': db.user = null; return ok(null);
     case 'PATCH /me/language': db.user = { ...me, language: field(body, 'language') }; return ok(db.user);
     case 'GET /machines/lookup': {
-      const m = db.machines.find((x) => x.code === query.get('code'));
+      const code = query.get('code')?.trim() ?? '';
+      const link = /\/m\/(\d+)\/?$/.exec(code); // scanned QR URL, like the backend
+      const m = db.machines.find((x) => (link ? x.id === Number(link[1]) : x.code === code));
       return m ? ok({ id: m.id }) : fail(404, 'Bu kodla makine bulunamadı.');
+    }
+    case 'POST /machines': {
+      if (me.role !== 'usta' && me.role !== 'patron') return fail(403, 'Bu işlem için yetkiniz yok.');
+      const code = field(body, 'code').trim().toUpperCase();
+      if (db.machines.some((m) => m.code === code)) return fail(409, 'Bu kodla bir makine zaten var.');
+      const newId = db.nextId++;
+      const machine = { id: newId, code, name: field(body, 'name'), type: field(body, 'type'), model: field(body, 'model'), serial: field(body, 'serial'), location: field(body, 'location'), photo_url: null };
+      const ustas = me.role === 'usta' ? [{ id: me.id, name: me.name }] : [];
+      db.pages[newId] = { ...fx.machinePage, machine, ustas, videos: [], external_videos: [], documents: [], maintenance: [], questions: [] };
+      db.machines.push({ id: newId, code, name: machine.name, serial: machine.serial, location: machine.location, ustas, last_maintenance: null, video_count: 0, document_count: 0 });
+      return { status: 201, body: { id: newId } };
+    }
+    case 'POST /machines/:id/archive': {
+      if (!ACTIONS[me.role].archive) return fail(403, 'Bu işlem için yetkiniz yok.');
+      db.machines = db.machines.filter((m) => m.id !== id); // page stays: history is kept
+      return ok(null);
     }
     case 'GET /machines/:id': {
       const page = db.pages[id];

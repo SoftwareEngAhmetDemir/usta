@@ -75,12 +75,12 @@ class MachineAdmin(ModelView, model=Machine):
     column_searchable_list = [Machine.code, Machine.name, Machine.serial, Machine.location]
     form_columns = [
         Machine.code, Machine.name, Machine.type, Machine.model, Machine.serial, Machine.location, Machine.photo,
-        Machine.ustas,
+        Machine.ustas, Machine.archived_at,
     ]  # fmt: skip
     form_overrides = {"photo": FileField}
     column_labels = {
         "code": "Kod", "name": "Ad", "type": "Tür", "model": "Model", "serial": "Seri no", "location": "Konum",
-        "photo": "Fotoğraf", "ustas": "Ustalar",
+        "photo": "Fotoğraf", "ustas": "Ustalar", "archived_at": "Arşivlendi (silerek geri alın)",
     }  # fmt: skip
 
     async def on_model_change(

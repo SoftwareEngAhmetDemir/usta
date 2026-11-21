@@ -1,8 +1,20 @@
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { inboxQuestion, me, ustaProfile } from '../../test/fixtures';
 import { mockApi, renderAuthed } from '../../test/utils';
+import { AlertsProvider } from '../alerts';
 import { ReplyPage, UstaHomePage, UstaProfilePage } from '.';
+
+class FakeSocket {
+  static last: FakeSocket | null = null;
+  onopen: (() => void) | null = null;
+  onmessage: ((e: { data: string }) => void) | null = null;
+  onclose: (() => void) | null = null;
+  constructor() { FakeSocket.last = this; }
+  close() {}
+}
+
+const home = () => renderAuthed(<AlertsProvider><UstaHomePage /></AlertsProvider>);
 
 class OkXhr {
   upload = { onprogress: null };
@@ -19,12 +31,24 @@ class OkXhr {
 describe('usta screens', () => {
   it('home lists open questions, his machines and his answers (KAN-62, KAN-65)', async () => {
     mockApi({ 'GET /auth/me': me('usta'), 'GET /me/inbox': [inboxQuestion], 'GET /ustas/7': ustaProfile });
-    renderAuthed(<UstaHomePage />);
+    vi.stubGlobal('WebSocket', FakeSocket);
+    home();
     expect(await screen.findByRole('heading', { name: /İşçilerden sorular/ })).toHaveTextContent('1 açık');
     expect(screen.getByRole('link', { name: /Kesimin altında çapak/ })).toHaveAttribute('href', '/usta/questions/51');
     expect(screen.getByRole('link', { name: 'PK-105 · Plazma Kesim Makinesi' })).toBeInTheDocument();
     expect(screen.getByText(/toprak pensesini/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Video çek/ })).toHaveAttribute('href', '/record');
+  });
+
+  it('home shows a worker\'s new question as soon as its live alert arrives', async () => {
+    vi.stubGlobal('WebSocket', FakeSocket);
+    let asked = false;
+    mockApi({ 'GET /auth/me': me('usta'), 'GET /me/inbox': () => (asked ? [inboxQuestion] : []), 'GET /ustas/7': ustaProfile, 'GET /alerts': { unread_count: 0, items: [] } });
+    home();
+    expect(await screen.findByRole('heading', { name: /İşçilerden sorular/ })).toHaveTextContent('0 açık');
+    asked = true;
+    act(() => FakeSocket.last?.onmessage?.({ data: JSON.stringify({ id: 5, text: 'Yeni soru', created_at: '2026-11-22T10:00:00', read: false, path: '/usta/questions/51' }) }));
+    expect(await screen.findByRole('heading', { name: /İşçilerden sorular/ })).toHaveTextContent('1 açık');
   });
 
   it('replies with text and confirms (KAN-63)', async () => {

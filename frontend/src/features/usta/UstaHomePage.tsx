@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router';
 import type { InboxQuestion, UstaProfile } from '../../api';
 import { useApi } from '../../api';
@@ -5,6 +6,7 @@ import { AsyncView } from '../../components/AsyncView';
 import { EmptyState } from '../../components/EmptyState';
 import { QaCard } from '../../components/QaCard';
 import { SectionTitle } from '../../components/SectionTitle';
+import { useAlerts } from '../alerts';
 import { useMe } from '../auth';
 import { InboxList } from './components/InboxList';
 import { MachineChips } from './components/MachineChips';
@@ -13,6 +15,9 @@ import { MachineChips } from './components/MachineChips';
 export function UstaHomePage() {
   const me = useMe();
   const inbox = useApi<InboxQuestion[]>('/me/inbox');
+  const { received } = useAlerts();
+  const reloadInbox = inbox.reload;
+  useEffect(() => { if (received) reloadInbox(); }, [received, reloadInbox]); // a worker's new question arrived live
   const profile = useApi<UstaProfile>(`/ustas/${me.id}`);
 
   return (

@@ -12,6 +12,7 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const [list, setList] = useState<AlertList>({ unread_count: 0, items: [] });
   const [toast, setToast] = useState<Alert | null>(null);
+  const [received, setReceived] = useState(0);
 
   const load = useCallback(() => {
     fetchAlerts().then(setList, () => undefined);
@@ -20,6 +21,7 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
 
   useAlertSocket((alert) => {
     setToast(alert);
+    setReceived((n) => n + 1);
     load(); // the backend owns the list and the unread count
   }, load);
 
@@ -38,6 +40,6 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
     [navigate],
   );
 
-  const value = useMemo(() => ({ list, toast, dismissToast: () => setToast(null), open }), [list, toast, open]);
+  const value = useMemo(() => ({ list, toast, dismissToast: () => setToast(null), open, received }), [list, toast, open, received]);
   return <AlertsContext.Provider value={value}>{children}</AlertsContext.Provider>;
 }
