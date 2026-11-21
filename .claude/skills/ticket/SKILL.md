@@ -1,6 +1,6 @@
 ---
 name: ticket
-description: Implement a Jira ticket from the KAN project (deepdamer.atlassian.net). Reads the issue, its parent and subtasks, turns its "Done when" / acceptance criteria into tests, runs the feature workflow, and prepares the branch, commit and Jira update. Use when the user gives a KAN-<n> key or a KAN issue URL, or types /ticket.
+description: Implement a Jira ticket from the KAN project (deepdamer.atlassian.net). Reads the issue, its parent and subtasks, turns its "Done when" / acceptance criteria into tests, runs the feature workflow, and prepares the branch, a suggested commit message and the Jira update. Use when the user gives a KAN-<n> key or a KAN issue URL, or types /ticket.
 argument-hint: KAN-<n>
 ---
 
@@ -17,7 +17,7 @@ Jira site: `deepdamer.atlassian.net`. Use it as `cloudId` in every Atlassian MCP
 4. **Branch.** `git switch -c KAN-<n>-<short-slug>` from an up-to-date `main`, unless you are already on that ticket's branch.
 5. **Build.** Follow the `feature` skill, steps 2–9 (impact, implement, unit tests, e2e, verify, review, CLAUDE.md). Mention the ticket key in the CLAUDE.md lines you add, e.g. `POST /machines/{id}/ask → AskOut (KAN-60)`.
 6. **Report.** Go through each acceptance criterion with ✅ (and the test that proves it) or ❌ (and the reason).
-7. **Commit and update Jira.** Do this only after the user confirms. These actions are shared with the team.
-   - Commit `KAN-<n>: <summary>`. Push and open a PR only if the user asks.
+7. **Hand over the commit and update Jira.** Do this only after the user confirms. These actions are shared with the team.
+   - Never run `git commit`, `git push` or `gh pr create` (denied in `.claude/settings.json`). Suggest the message `KAN-<n>: <summary>` and the files to stage; the user commits and pushes.
    - Post a short comment on the ticket (`addOrEditJiraIssueComment`): what changed, how to test it, and the PR link if there is one.
    - Move the ticket to the next status only if the user asks (`transitionJiraIssue`).

@@ -2,7 +2,7 @@ import { Navigate, Route, Routes } from 'react-router';
 import { AdminMachinesPage, StickersPage, UsersPage } from '../features/admin';
 import { AlertsPage, AlertsProvider } from '../features/alerts';
 import { AskPage } from '../features/ask';
-import { AuthProvider, LoginPage, RequireAuth } from '../features/auth';
+import { AuthProvider, LoginPage, RegisterPage, RequireAuth } from '../features/auth';
 import { DocumentPage } from '../features/documents';
 import { MachinePage } from '../features/machine-page';
 import { MaintenanceFormPage, TechHomePage } from '../features/maintenance';
@@ -19,6 +19,7 @@ export function AppRoutes() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route element={<RequireAuth><AlertsProvider><AppLayout /></AlertsProvider></RequireAuth>}>
           <Route index element={<HomeRedirect />} />
           <Route path="scan" element={<ScanPage />} />

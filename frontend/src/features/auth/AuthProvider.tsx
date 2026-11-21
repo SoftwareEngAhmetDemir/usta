@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { LanguageCode, LoginIn, Me } from '../../api';
+import type { LanguageCode, LoginIn, Me, RegisterIn } from '../../api';
 import * as api from './api';
 import { AuthContext, type AuthState } from './context';
 
@@ -20,6 +20,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return me;
   }, []);
 
+  const signUp = useCallback(async (body: RegisterIn) => {
+    const me = await api.register(body);
+    setAuth({ status: 'user', me });
+    return me;
+  }, []);
+
   const signOut = useCallback(async () => {
     await api.logout().catch(() => null); // leaving is always allowed, even offline
     setAuth({ status: 'anon', loggedOut: true });
@@ -30,6 +36,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuth({ status: 'user', me });
   }, []);
 
-  const value = useMemo(() => ({ auth, signIn, signOut, setLanguage }), [auth, signIn, signOut, setLanguage]);
+  const value = useMemo(
+    () => ({ auth, signIn, signUp, signOut, setLanguage }),
+    [auth, signIn, signUp, signOut, setLanguage],
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

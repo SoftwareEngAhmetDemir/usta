@@ -24,6 +24,15 @@ export interface LoginIn {
   password: string;
 }
 
+/** Roles anyone may pick at sign-up (backend SELF_SERVICE_ROLES); Teknisyen/Patron are given by the patron. */
+export type RegisterRole = Extract<Role, 'worker' | 'usta'>;
+
+/** Self sign-up; the backend creates the account and logs them in. */
+export interface RegisterIn extends LoginIn {
+  name: string;
+  role: RegisterRole;
+}
+
 export interface PersonRef {
   id: number;
   name: string;

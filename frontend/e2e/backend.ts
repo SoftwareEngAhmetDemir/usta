@@ -32,6 +32,12 @@ export async function mockBackend(page: Page, opts: { role: Role; loggedIn?: boo
   const routes: Routes = {
     ...defaults(),
     'POST /auth/login': () => (user = fx.me(opts.role)),
+    'POST /auth/register': ({ body }) => {
+      const name = body && typeof body === 'object' && 'name' in body ? String(body.name) : '';
+      const usta = body && typeof body === 'object' && 'role' in body && body.role === 'usta';
+      user = { ...fx.me(usta ? 'usta' : 'worker'), name };
+      return { status: 201, body: user };
+    },
     'PATCH /me/language': ({ body }) => {
       const lang = body && typeof body === 'object' && 'language' in body ? String(body.language) : 'tr';
       user = fx.me(opts.role, lang);
@@ -59,6 +65,12 @@ export async function mockBackend(page: Page, opts: { role: Role; loggedIn?: boo
       return route.fulfill({ status: out.status, json: out.body });
     }
     return out === null ? route.fulfill({ status: 204 }) : route.fulfill({ json: out });
+  });
+
+  // Fixture media URLs (/uploads/videos/1/original.mp4, ...) must not reach a real backend through the Vite proxy.
+  await page.route((u) => u.pathname.startsWith('/uploads/'), (route) => {
+    calls.push({ key: `GET ${new URL(route.request().url()).pathname}`, body: null });
+    return route.fulfill({ status: 404, body: '' });
   });
 
   let socket: WebSocketRoute | null = null;

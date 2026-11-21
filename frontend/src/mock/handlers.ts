@@ -97,6 +97,11 @@ export function handle(db: MockDb, req: MockRequest): MockResponse {
     db.user = fx.me(role);
     return ok(db.user);
   }
+  if (route === 'POST /auth/register') {
+    const role: Role = field(body, 'role') === 'usta' ? 'usta' : 'worker'; // like the backend: only İşçi or Usta
+    db.user = { ...fx.me(role), name: field(body, 'name') };
+    return { status: 201, body: db.user };
+  }
   if (route === 'GET /languages') return ok(fx.languages);
   const me = db.user;
   if (!me) return fail(401, 'Giriş gerekli.');

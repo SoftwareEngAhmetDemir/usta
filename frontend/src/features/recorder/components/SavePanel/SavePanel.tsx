@@ -28,6 +28,7 @@ export function SavePanel({ saving, canSave, onRetake, onSave }: Props) {
         <Button variant="secondary" onClick={onRetake} disabled={saving}>Yeniden çek</Button>
         <Button type="submit" loading={saving} disabled={!canSave}>Kaydet</Button>
       </div>
+      {!canSave && <p className="muted" style={{ margin: 0 }}>Kaydetmek için yukarıdan bir makine seçin.</p>}
     </form>
   );
 }

@@ -18,6 +18,34 @@ test('worker logs in after scanning and lands on the machine page (KAN-24, KAN-3
   await expect(page.getByRole('heading', { name: 'Plazma Kesim Makinesi' })).toBeVisible();
 });
 
+test('new usta without an account signs up from the login page and lands on the scanned machine', async ({ page }) => {
+  const api = await mockBackend(page, { role: 'worker', loggedIn: false });
+  await page.goto('/m/1');
+  await page.getByRole('link', { name: 'Kayıt ol' }).click();
+  await expect(page).toHaveURL(/\/register$/);
+  await page.getByRole('button', { name: 'Usta' }).click();
+  await page.getByLabel('Ad soyad').fill('Yusuf Kaya');
+  await page.getByLabel('Telefon veya e-posta').fill('0532 123 45 67');
+  await page.getByLabel('Şifre (en az 8 karakter)').fill('gizli-sifre');
+  await page.getByRole('button', { name: 'Kayıt ol' }).click();
+  await expect(page).toHaveURL(/\/m\/1$/);
+  await expect(page.getByRole('heading', { name: 'Plazma Kesim Makinesi' })).toBeVisible();
+  expect(api.calls.find((c) => c.key === 'POST /auth/register')?.body).toEqual({
+    name: 'Yusuf Kaya', login: '0532 123 45 67', password: 'gizli-sifre', role: 'usta',
+  });
+});
+
+test('opening a page calls each API once, not twice', async ({ page }) => {
+  const api = await mockBackend(page, { role: 'worker' });
+  await page.goto('/m/1');
+  await expect(page.getByRole('heading', { name: 'Plazma Kesim Makinesi' })).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  const count = (key: string) => api.calls.filter((c) => c.key === key).length;
+  expect(count('GET /machines/1')).toBe(1);
+  expect(count('GET /auth/me')).toBe(1);
+  expect(count('GET /alerts')).toBe(1);
+});
+
 test('worker switches content language to Arabic (KAN-46)', async ({ page }) => {
   const api = await mockBackend(page, { role: 'worker' });
   await page.goto('/m/1');
@@ -59,6 +87,12 @@ test('video in the worker language is prepared on demand with progress (KAN-55)'
   await page.goto('/videos/1');
   await expect(page.getByText('Bu video العربية hazırlanıyor')).toBeVisible();
   await expect(page.getByText('Dublaj (ustanın sesiyle)')).toBeVisible();
+});
+
+test('fixture media is answered by the stub, never sent to a real backend', async ({ page }) => {
+  const api = await mockBackend(page, { role: 'worker' });
+  await page.goto('/videos/1');
+  await expect.poll(() => api.calls.some((c) => c.key === 'GET /uploads/videos/1/original.mp4')).toBe(true);
 });
 
 test('document opens at the cited page with its summary (KAN-45)', async ({ page }) => {

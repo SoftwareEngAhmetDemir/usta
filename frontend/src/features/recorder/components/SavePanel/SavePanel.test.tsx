@@ -16,6 +16,7 @@ describe('SavePanel', () => {
     const onRetake = vi.fn();
     render(<SavePanel saving={false} canSave={false} onRetake={onRetake} onSave={() => {}} />);
     expect(screen.getByRole('button', { name: 'Kaydet' })).toBeDisabled();
+    expect(screen.getByText('Kaydetmek için yukarıdan bir makine seçin.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Yeniden çek' }));
     expect(onRetake).toHaveBeenCalled();
   });

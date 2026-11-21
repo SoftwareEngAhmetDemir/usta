@@ -32,7 +32,7 @@ export function RecorderPage() {
   return (
     <>
       <PageTitle title="Video çek" back />
-      <MachineSelect machines={machines.state.status === 'ok' ? machines.state.data : []} value={machineId} onChange={setMachineId} />
+      {machines.state.status === 'ok' && <MachineSelect machines={machines.state.data} value={machineId} onChange={setMachineId} />}
       <ErrorMessage error={machines.state.status === 'error' ? machines.state.error : null} onRetry={machines.reload} />
       <CameraView stream={camera.stream} previewUrl={rec.clip?.url ?? null} recordingSec={rec.recording ? rec.seconds : null} />
       {(camera.error ?? rec.error) && <div className="alert-error" role="alert">{camera.error ?? rec.error}</div>}

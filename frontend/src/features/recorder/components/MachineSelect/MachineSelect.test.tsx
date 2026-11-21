@@ -8,3 +8,9 @@ it('MachineSelect reports the chosen machine id', async () => {
   await userEvent.selectOptions(screen.getByLabelText('Makine'), 'AB-01 · Abkant');
   expect(onChange).toHaveBeenCalledWith(4);
 });
+
+it('MachineSelect explains when the usta has no machines yet', () => {
+  render(<MachineSelect machines={[]} value={null} onChange={() => {}} />);
+  expect(screen.getByRole('alert')).toHaveTextContent('Size atanmış makine yok.');
+  expect(screen.queryByLabelText('Makine')).not.toBeInTheDocument();
+});
