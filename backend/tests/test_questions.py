@@ -98,6 +98,21 @@ async def test_machine_without_ustas_goes_to_the_patron(
     assert len((await (await client_as(patron)).get("/api/me/inbox")).json()) == 1
 
 
+async def test_patron_sees_and_answers_every_question(
+    client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine
+) -> None:
+    usta, patron = await make_user(Role.usta), await make_user(Role.patron, name="Patron")
+    machine = await make_machine(ustas=[usta])
+    worker = await client_as(await make_user())
+    qid = (await worker.post(f"/api/machines/{machine.id}/questions", json={"question": "Yağ ne zaman?"})).json()["id"]
+    p = await client_as(patron)
+    assert [q["id"] for q in (await p.get("/api/me/inbox")).json()] == [qid]  # though the machine has an usta
+    assert (await p.post(f"/api/questions/{qid}/answer", data={"text": "Her ay."})).status_code == 200
+    profile = (await p.get(f"/api/ustas/{patron.id}")).json()  # the patron's "Sorular" page
+    assert [q["id"] for q in profile["answered"]] == [qid]
+    assert (await (await client_as(await make_user())).get(f"/api/ustas/{(await make_user()).id}")).status_code == 404
+
+
 async def test_question_validation(client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine) -> None:
     machine = await make_machine()
     c = await client_as(await make_user())

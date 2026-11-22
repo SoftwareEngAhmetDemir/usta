@@ -20,7 +20,7 @@ describe('MachinePage (KAN-71)', () => {
   });
 
   it('shows empty messages and role actions from the API', async () => {
-    const empty = { ...machinePage, ustas: [], videos: [], external_videos: [], documents: [], maintenance: [], questions: [], actions: { ask: true, record_video: true, upload_document: true, record_maintenance: true, archive: true } };
+    const empty = { ...machinePage, ustas: [], videos: [], external_videos: [], documents: [], maintenance: [], questions: [], actions: { ask: true, record_video: true, upload_document: true, record_maintenance: true, archive: true, qr: true } };
     mockApi({ 'GET /auth/me': me('patron'), 'GET /languages': languages, 'GET /machines/1': empty });
     show();
     for (const msg of ['Henüz video yok.', 'Henüz doküman yok.', 'Henüz bakım kaydı yok.', 'Henüz soru yok.', 'Henüz bağlı usta yok.']) {
@@ -28,6 +28,14 @@ describe('MachinePage (KAN-71)', () => {
     }
     expect(screen.getByRole('link', { name: 'Video çek' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Belge yükle' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Etiketi yazdır (PDF)' })).toHaveAttribute('href', '/api/machines/1/sticker.pdf');
+  });
+
+  it('hides the QR section without the qr action (workers)', async () => {
+    mockApi({ 'GET /auth/me': me('worker'), 'GET /languages': languages, 'GET /machines/1': machinePage });
+    show();
+    await screen.findByRole('heading', { name: 'Plazma Kesim Makinesi' });
+    expect(screen.queryByText('QR kodu')).not.toBeInTheDocument();
   });
 
   it('switches content language, saves it on the profile and refetches (KAN-46)', async () => {

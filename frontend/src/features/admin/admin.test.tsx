@@ -29,11 +29,17 @@ describe('patron panel', () => {
     expect(calls.filter((c) => c.path === '/admin/machines?q=')).toHaveLength(2);
   });
 
-  it('shows QR stickers with a PDF download (KAN-30)', async () => {
+  it('shows QR stickers and makes a PDF of the ticked machines (KAN-30)', async () => {
     mockApi({ 'GET /auth/me': me('patron'), 'GET /admin/machines?q=': adminMachines });
     renderAuthed(<StickersPage />);
     expect(await screen.findByAltText('Plazma Kesim Makinesi QR kodu')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'PDF indir' })).toHaveAttribute('href', '/api/admin/qr-stickers.pdf');
+    const pdf = screen.getByRole('link', { name: 'PDF indir (2)' });
+    expect(pdf).toHaveAttribute('href', '/api/admin/qr-stickers.pdf');
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Forklift 3 yazdır' }));
+    expect(screen.getByRole('link', { name: 'PDF indir (1)' })).toHaveAttribute('href', '/api/admin/qr-stickers.pdf?ids=1');
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Plazma Kesim Makinesi yazdır' }));
+    expect(screen.queryByRole('link', { name: /PDF indir/ })).not.toBeInTheDocument();
+    expect(screen.getByText('Yazdırmak için en az bir makine seçin.')).toBeInTheDocument();
   });
 
   it('lists users and roles (KAN-25, KAN-26)', async () => {

@@ -1,7 +1,7 @@
 import re
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
@@ -49,6 +49,12 @@ class MachinePage(BaseModel):
     maintenance: list[MaintenanceRecordOut]
     questions: list[QaEntry]
     actions: MachineActions
+
+
+def search_condition(q: str) -> ColumnElement[bool]:
+    """`q` anywhere in code, name, serial or location (`%`/`_` typed by the user are literal)."""
+    pattern = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    return or_(*(col.like(pattern) for col in (Machine.code, Machine.name, Machine.serial, Machine.location)))
 
 
 def machine_out(m: Machine) -> MachineOut:

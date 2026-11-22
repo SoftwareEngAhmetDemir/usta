@@ -5,18 +5,20 @@ import secrets
 import shutil
 from pathlib import Path
 
+from pydantic import AnyHttpUrl, TypeAdapter, ValidationError
 from sqladmin import Admin, ModelView
 from sqladmin.authentication import AuthenticationBackend
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette.applications import Starlette
 from starlette.datastructures import UploadFile
 from starlette.requests import Request
-from wtforms import FileField
+from wtforms import FileField, Form, PasswordField
 
 from app.auth import service as auth_service
 from app.auth.deps import SESSION_COOKIE
 from app.auth.models import Role, User
-from app.auth.schemas import normalize_login
+from app.auth.passwords import hash_password
+from app.auth.schemas import normalize_login, valid_password
 from app.core import storage
 from app.documents.models import Document
 from app.machines.models import ExternalVideo, Machine
@@ -59,6 +61,9 @@ class PatronOnly(AuthenticationBackend):
         return user is not None and user.role == Role.patron
 
 
+_HTTP_URL = TypeAdapter(AnyHttpUrl)
+
+
 def _take_upload(data: dict[str, object], key: str, folder: str) -> None:
     """Turn the uploaded file in form field `key` into a stored path; no file chosen keeps the current one."""
     file = data.get(key)
@@ -90,12 +95,14 @@ class MachineAdmin(ModelView, model=Machine):
 
 
 class UserAdmin(ModelView, model=User):
-    """Accounts are created by sign-up or `python -m app.auth.cli`; here the patron sets roles and authorization."""
+    """Accounts are created by sign-up or `python -m app.auth.cli`; here the patron sets roles and authorization,
+    and resets a forgotten password (KAN-24)."""
 
     name, name_plural, icon = "Kullanıcı", "Kullanıcılar", "fa-solid fa-users"
     can_create = False
     column_list = [User.id, User.name, User.login, User.role, User.authorized]
     column_searchable_list = [User.name, User.login]
+    column_details_exclude_list = [User.password_hash]
     form_columns = [
         User.name, User.role, User.language, User.authorized, User.authorization_note, User.authorization_document,
     ]  # fmt: skip
@@ -105,19 +112,34 @@ class UserAdmin(ModelView, model=User):
         "authorization_note": "Yetki notu", "authorization_document": "Yetki belgesi",
     }  # fmt: skip
 
+    async def scaffold_form(self, rules: list[str] | None = None) -> type[Form]:
+        form = await super().scaffold_form(rules)
+        # Not a column: an empty field keeps the current password (the stored hash is never shown).
+        form.new_password = PasswordField("Yeni şifre (boş bırakılırsa değişmez)", render_kw={"class": "form-control"})
+        return form
+
     async def on_model_change(self, data: dict[str, object], model: User, is_created: bool, request: Request) -> None:
         _take_upload(data, "authorization_document", "certs")
+        password = data.pop("new_password", None)
+        if isinstance(password, str) and password:
+            data["password_hash"] = hash_password(valid_password(password))
 
 
 class ExternalVideoAdmin(ModelView, model=ExternalVideo):
     name, name_plural, icon = "Dış video", "Dış videolar", "fa-brands fa-youtube"
     column_list = [ExternalVideo.id, ExternalVideo.machine, ExternalVideo.title, ExternalVideo.source]
     form_columns = [ExternalVideo.machine, ExternalVideo.title, ExternalVideo.url, ExternalVideo.source]
+    column_labels = {"machine": "Makine", "title": "Başlık", "url": "Bağlantı", "source": "Kaynak"}
 
     async def on_model_change(
         self, data: dict[str, object], model: ExternalVideo, is_created: bool, request: Request
     ) -> None:
-        data["embed_url"] = embed_url(str(data.get("url") or ""))
+        url = str(data.get("url") or "")
+        try:
+            _HTTP_URL.validate_python(url)  # same rule as the app's form: workers open this link
+        except ValidationError:
+            raise ValueError("Bağlantı http:// veya https:// ile başlamalı.") from None
+        data["embed_url"] = embed_url(url)
 
 
 def _remove_folder(rel: str) -> None:
@@ -129,6 +151,9 @@ class VideoAdmin(ModelView, model=Video):
     can_create = False
     column_list = [Video.id, Video.title, Video.machine_id, Video.status, Video.language, Video.created_at]
     form_columns = [Video.title]
+    column_labels = {
+        "title": "Başlık", "machine_id": "Makine no", "status": "Durum", "language": "Dil", "created_at": "Tarih",
+    }  # fmt: skip
 
     async def after_model_delete(self, model: Video, request: Request) -> None:
         _remove_folder(video_dir(model.id))
@@ -139,6 +164,7 @@ class DocumentAdmin(ModelView, model=Document):
     can_create = False
     column_list = [Document.id, Document.title, Document.type, Document.machine_id, Document.summary_status]
     form_columns = [Document.title, Document.type]
+    column_labels = {"title": "Başlık", "type": "Tür", "machine_id": "Makine no", "summary_status": "Özet"}
 
     async def after_model_delete(self, model: Document, request: Request) -> None:
         _remove_folder(f"docs/{model.id}")
@@ -148,13 +174,19 @@ class QuestionAdmin(ModelView, model=Question):
     name, name_plural, icon = "Soru", "Sorular", "fa-solid fa-circle-question"
     can_create = can_edit = False
     column_list = [Question.id, Question.machine, Question.text, Question.status, Question.created_at]
+    column_labels = {"machine": "Makine", "text": "Soru", "status": "Durum", "created_at": "Tarih"}
 
 
 class MaintenanceAdmin(ModelView, model=MaintenanceRecord):
+    """Read-only (KAN-41): the maintenance history must stay as the technician recorded it."""
+
     name, name_plural, icon = "Bakım kaydı", "Bakım kayıtları", "fa-solid fa-wrench"
-    can_create = False
+    can_create = can_edit = can_delete = False
     column_list = [MaintenanceRecord.id, MaintenanceRecord.machine, MaintenanceRecord.created_at]
-    form_columns = [MaintenanceRecord.description]
+    column_labels = {
+        "machine": "Makine", "created_at": "Tarih", "description": "Yapılan iş", "done_by": "Yapan",
+        "opened_by": "Açan", "attachments": "Ekler",
+    }  # fmt: skip
 
 
 def mount(app: Starlette, sessionmaker: async_sessionmaker[AsyncSession], secret_key: str) -> None:

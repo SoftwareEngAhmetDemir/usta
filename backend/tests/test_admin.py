@@ -1,16 +1,18 @@
+import re
 from collections.abc import Awaitable, Callable
 from io import BytesIO
 
+import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from starlette.datastructures import Headers, UploadFile
 from starlette.requests import Request
 
-from app.admin.views import MachineAdmin
+from app.admin.views import ExternalVideoAdmin, MachineAdmin
 from app.auth.deps import SESSION_COOKIE
 from app.auth.models import Role, User
 from app.core import storage
-from app.machines.models import Machine
+from app.machines.models import ExternalSource, ExternalVideo, Machine
 from tests.conftest import ClientAs
 
 MakeUser = Callable[..., Awaitable[User]]
@@ -104,3 +106,54 @@ async def test_uploads_need_login_and_stay_inside_the_folder(
     assert res.status_code == 200 and res.text == "merhaba"
     assert (await c.get("/uploads/test/yok.txt")).status_code == 404
     assert (await c.get("/uploads/..%2f..%2fetc%2fpasswd")).status_code == 404
+
+
+async def _can_log_in(app: FastAPI, login: str, password: str) -> bool:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        return (await c.post("/api/auth/login", json={"login": login, "password": password})).status_code == 200
+
+
+async def test_patron_resets_a_password_in_sqladmin(app: FastAPI, client_as: ClientAs, make_user: MakeUser) -> None:
+    patron = await client_as(await make_user(Role.patron))
+    worker = await make_user()
+    edit = f"/admin/user/edit/{worker.id}"
+    form = {"name": worker.name, "role": "worker", "language": "tr", "authorization_note": ""}
+    field = re.search(r"<input[^>]*name=\"new_password\"[^>]*>", (await patron.get(edit)).text)
+    assert field and "required" not in field.group(0)  # saving other fields must not need a new password
+    assert (await patron.post(edit, data={**form, "new_password": ""})).status_code in (302, 303)
+    assert await _can_log_in(app, worker.login, "gizli-sifre")  # empty field keeps the password
+    assert (await patron.post(edit, data={**form, "new_password": "kisa"})).status_code == 400
+    assert await _can_log_in(app, worker.login, "gizli-sifre")
+    assert (await patron.post(edit, data={**form, "new_password": "yeni-sifre-1"})).status_code in (302, 303)
+    assert await _can_log_in(app, worker.login, "yeni-sifre-1")
+    assert not await _can_log_in(app, worker.login, "gizli-sifre")
+    details = await patron.get(f"/admin/user/details/{worker.id}")
+    assert details.status_code == 200 and "scrypt$" not in details.text  # the hash is never shown
+
+
+async def test_maintenance_records_are_read_only_in_sqladmin(
+    client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine
+) -> None:
+    tech, patron_user = await make_user(Role.technician), await make_user(Role.patron)
+    machine = await make_machine()
+    rec = (
+        await (await client_as(tech)).post(
+            f"/api/machines/{machine.id}/maintenance",
+            data={"description": "Yağ değişti", "opened_by_id": str(patron_user.id)},
+        )
+    ).json()
+    patron = await client_as(patron_user)
+    assert (await patron.get("/admin/maintenance-record/list")).status_code == 200
+    assert (await patron.get(f"/admin/maintenance-record/details/{rec['id']}")).status_code == 200
+    assert (await patron.get(f"/admin/maintenance-record/edit/{rec['id']}")).status_code == 403
+    assert (await patron.delete(f"/admin/maintenance-record/delete?pks={rec['id']}")).status_code == 403
+
+
+async def test_outside_video_link_in_sqladmin_must_be_http() -> None:
+    view, req = ExternalVideoAdmin(), Request({"type": "http"})
+    bad: dict[str, object] = {"title": "X", "url": "javascript:alert(1)"}
+    with pytest.raises(ValueError, match="http"):
+        await view.on_model_change(bad, ExternalVideo(), True, req)
+    ok: dict[str, object] = {"title": "X", "url": "https://youtu.be/dQw4w9WgXcQ", "source": ExternalSource.manufacturer}
+    await view.on_model_change(ok, ExternalVideo(), True, req)
+    assert ok["embed_url"] == "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"

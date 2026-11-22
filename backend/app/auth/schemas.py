@@ -31,7 +31,7 @@ def _valid_name(value: str) -> str:
     return value
 
 
-def _valid_password(value: str) -> str:
+def valid_password(value: str) -> str:
     if len(value) < 8:
         raise ValueError("Şifre en az 8 karakter olmalı.")
     return value
@@ -55,7 +55,7 @@ class LoginIn(BaseModel):
 class RegisterIn(BaseModel):
     name: Annotated[str, Field(max_length=100), AfterValidator(_valid_name)]
     login: Annotated[str, Field(max_length=255), AfterValidator(_valid_login)]
-    password: Annotated[str, Field(max_length=128), AfterValidator(_valid_password)]
+    password: Annotated[str, Field(max_length=128), AfterValidator(valid_password)]
     role: Annotated[Role, BeforeValidator(_self_service_role)] = Role.worker
 
 

@@ -18,7 +18,16 @@ export default defineConfig(({ mode }) => ({
         : {
             '/api': { target: backend, ws: true, changeOrigin: true },
             '/uploads': { target: backend, changeOrigin: true },
-            '/admin': { target: backend, changeOrigin: true }, // SQLAdmin (KAN-41)
+            // SQLAdmin (KAN-41) builds absolute links from Host + scheme: keep the browser's host (no changeOrigin)
+            // and pass http/https on, else its links jump to :8000, which a phone on the forwarded URL can't open.
+            '/admin': {
+              target: backend,
+              configure: (proxy) =>
+                proxy.on('proxyReq', (req, incoming) => {
+                  const proto = String(incoming.headers['x-forwarded-proto'] ?? 'http').split(',')[0].trim();
+                  req.setHeader('x-forwarded-proto', proto);
+                }),
+            },
           },
   },
   test: {

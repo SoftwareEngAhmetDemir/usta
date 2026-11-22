@@ -30,7 +30,7 @@ class OkXhr {
 
 describe('usta screens', () => {
   it('home lists open questions, his machines and his answers (KAN-62, KAN-65)', async () => {
-    mockApi({ 'GET /auth/me': me('usta'), 'GET /me/inbox': [inboxQuestion], 'GET /ustas/7': ustaProfile });
+    const { calls } = mockApi({ 'GET /auth/me': me('usta'), 'GET /me/inbox': [inboxQuestion], 'GET /ustas/7': ustaProfile, 'GET /machines?q=': [], 'GET /machines?q=fork': [{ id: 2, code: 'FL-03', name: 'Forklift 3', location: 'Depo' }] });
     vi.stubGlobal('WebSocket', FakeSocket);
     home();
     expect(await screen.findByRole('heading', { name: /İşçilerden sorular/ })).toHaveTextContent('1 açık');
@@ -38,6 +38,9 @@ describe('usta screens', () => {
     expect(screen.getByRole('link', { name: 'PK-105 · Plazma Kesim Makinesi' })).toBeInTheDocument();
     expect(screen.getByText(/toprak pensesini/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Video çek/ })).toHaveAttribute('href', '/record');
+    await userEvent.type(screen.getByLabelText('Makine ara'), 'fork'); // searched on the backend, any machine
+    expect(await screen.findByRole('link', { name: 'FL-03 · Forklift 3 · Depo' })).toHaveAttribute('href', '/m/2');
+    expect(calls.some((c) => c.path === '/machines?q=fork')).toBe(true);
   });
 
   it('home shows a worker\'s new question as soon as its live alert arrives', async () => {

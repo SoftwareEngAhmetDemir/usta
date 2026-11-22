@@ -12,7 +12,7 @@ from app.deps import CtxDep, SessionDep, forbidden, not_found
 from app.machines import qr
 from app.machines.models import ExternalSource, ExternalVideo, Machine
 from app.machines.permissions import actions
-from app.machines.service import ExternalVideoOut, MachinePage, embed_url, machine_page
+from app.machines.service import ExternalVideoOut, MachinePage, embed_url, machine_page, search_condition
 
 router = APIRouter(tags=["machines"])
 
@@ -25,6 +25,10 @@ class MachineRef(BaseModel):
     id: int
     code: str
     name: str
+
+
+class MachineHit(MachineRef):
+    location: str
 
 
 Text = Annotated[str, StringConstraints(strip_whitespace=True, max_length=120)]
@@ -63,6 +67,17 @@ async def lookup(
     if machine is None:
         raise not_found("Bu kodla makine")
     return MachineId(id=machine.id)
+
+
+@router.get("/machines", response_model=list[MachineHit])
+async def search_machines(
+    _: MachineAdder, db: SessionDep, q: Annotated[str, Query(max_length=100)] = ""
+) -> list[MachineHit]:
+    """Ustas and the patron find any machine by code, name, serial or location (empty `q` = all)."""
+    query = select(Machine).where(Machine.archived_at.is_(None)).order_by(Machine.name).limit(50)
+    if q.strip():
+        query = query.where(search_condition(q.strip()))
+    return [MachineHit(id=m.id, code=m.code, name=m.name, location=m.location) for m in await db.scalars(query)]
 
 
 @router.post("/machines", response_model=MachineId, status_code=status.HTTP_201_CREATED)
@@ -120,9 +135,27 @@ async def add_external_video(machine_id: int, body: ExternalVideoIn, _: PatronUs
     return ExternalVideoOut.model_validate(video)
 
 
-@router.get("/machines/{machine_id}/qr.svg")
-async def machine_qr(machine_id: int, _: PatronUser, db: SessionDep, ctx: CtxDep) -> Response:
+async def _qr_machine(db: SessionDep, machine_id: int, user: User) -> Machine:
     machine = await db.get(Machine, machine_id)
     if machine is None:
         raise not_found("Makine")
+    if not actions(user, machine).qr:
+        raise forbidden()
+    return machine
+
+
+@router.get("/machines/{machine_id}/qr.svg")
+async def machine_qr(machine_id: int, user: CurrentUser, db: SessionDep, ctx: CtxDep) -> Response:
+    machine = await _qr_machine(db, machine_id, user)
     return Response(qr.svg(qr.machine_url(ctx.settings.public_url, machine.id)), media_type="image/svg+xml")
+
+
+@router.get("/machines/{machine_id}/sticker.pdf")
+async def machine_sticker(machine_id: int, user: CurrentUser, db: SessionDep, ctx: CtxDep) -> Response:
+    """One printable sticker for this machine, e.g. right after an usta adds it (KAN-29, KAN-30)."""
+    machine = await _qr_machine(db, machine_id, user)
+    return Response(
+        qr.sticker_sheet([machine], ctx.settings.public_url),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="qr-{machine.id}.pdf"'},
+    )

@@ -21,10 +21,10 @@ const fail = (status: number, detail: string): MockResponse => ({ status, body: 
 const now = () => new Date().toISOString();
 
 const ACTIONS: Record<Role, MachineActions> = {
-  worker: { ask: true, record_video: false, upload_document: false, record_maintenance: false, archive: false },
-  usta: { ask: true, record_video: true, upload_document: false, record_maintenance: false, archive: true },
-  technician: { ask: true, record_video: false, upload_document: false, record_maintenance: true, archive: false },
-  patron: { ask: true, record_video: true, upload_document: true, record_maintenance: true, archive: true },
+  worker: { ask: true, record_video: false, upload_document: false, record_maintenance: false, archive: false, qr: false },
+  usta: { ask: true, record_video: true, upload_document: false, record_maintenance: false, archive: true, qr: true },
+  technician: { ask: true, record_video: false, upload_document: false, record_maintenance: true, archive: false, qr: false },
+  patron: { ask: true, record_video: true, upload_document: true, record_maintenance: true, archive: true, qr: true },
 };
 const PREP_LABELS = ['Çeviri', 'Altyazı', 'Ses ayrıştırma', 'Dublaj (ustanın sesiyle)', 'Zamanlama ve miksaj'];
 const PROC_LABELS = ['Yüklendi', 'Sıkıştırılıyor (H.264)', 'Konuşma metne dönüştürülüyor', 'Aramaya ekleniyor'];
@@ -115,6 +115,12 @@ export function handle(db: MockDb, req: MockRequest): MockResponse {
       const link = /\/m\/(\d+)\/?$/.exec(code); // scanned QR URL, like the backend
       const m = db.machines.find((x) => (link ? x.id === Number(link[1]) : x.code === code));
       return m ? ok({ id: m.id }) : fail(404, 'Bu kodla makine bulunamadı.');
+    }
+    case 'GET /machines': {
+      if (me.role !== 'usta' && me.role !== 'patron') return fail(403, 'Bu işlem için yetkiniz yok.');
+      const q = (query.get('q') ?? '').trim().toLocaleLowerCase('tr');
+      const hits = db.machines.filter((m) => [m.code, m.name, m.serial, m.location].some((t) => t.toLocaleLowerCase('tr').includes(q)));
+      return ok(hits.map((m) => ({ id: m.id, code: m.code, name: m.name, location: m.location })));
     }
     case 'POST /machines': {
       if (me.role !== 'usta' && me.role !== 'patron') return fail(403, 'Bu işlem için yetkiniz yok.');

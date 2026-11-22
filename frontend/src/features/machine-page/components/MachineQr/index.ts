@@ -1,0 +1,1 @@
+export { MachineQr } from './MachineQr';

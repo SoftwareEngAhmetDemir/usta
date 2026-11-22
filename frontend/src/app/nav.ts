@@ -26,6 +26,7 @@ export const NAV: Record<Role, NavItem[]> = {
   ],
   patron: [
     { to: '/panel', icon: '▦', label: 'Yönetim' },
+    { to: '/usta', icon: '?', label: 'Sorular' }, // the patron answers any question
     { to: '/record', icon: '●', label: 'Video çek' },
     { to: '/alerts', icon: '🔔', label: 'Bildirim' },
   ],

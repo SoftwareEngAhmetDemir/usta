@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, StringConstraints
-from sqlalchemy import ColumnElement, or_, select
+from sqlalchemy import ColumnElement, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.protocol import AIUnavailableError
@@ -140,10 +140,9 @@ def inbox_question(q: Question, loc: Localizer) -> InboxQuestion:
 
 def answerable_by(user: User) -> ColumnElement[bool]:
     """SQL condition: questions this user should answer (see permissions.can_answer)."""
-    mine = Machine.ustas.any(User.id == user.id)
     if user.role == Role.patron:
-        return or_(mine, ~Machine.ustas.any())
-    return mine
+        return true()
+    return Machine.ustas.any(User.id == user.id)
 
 
 async def answered_on(db: AsyncSession, machine_id: int | None = None, usta_id: int | None = None) -> list[Question]:

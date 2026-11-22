@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Response
 from pydantic import BaseModel
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import PatronUser
@@ -16,6 +16,7 @@ from app.deps import CtxDep, SessionDep
 from app.documents.models import Document
 from app.machines import qr
 from app.machines.models import Machine
+from app.machines.service import search_condition
 from app.maintenance.models import MaintenanceRecord
 from app.questions.models import Question, QuestionStatus
 from app.questions.service import person
@@ -87,10 +88,6 @@ async def _last_maintenance(db: AsyncSession) -> dict[int, tuple[datetime, str]]
     return {machine_id: (at, name) for machine_id, at, name in rows}
 
 
-def _like(q: str) -> str:
-    return "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
-
-
 @router.get("/machines", response_model=AdminMachineList)
 async def admin_machines(
     _: PatronUser, db: SessionDep, q: Annotated[str, Query(max_length=100)] = ""
@@ -98,10 +95,7 @@ async def admin_machines(
     """Stats + machine table; `q` searches code, name, serial and location."""
     query = select(Machine).where(Machine.archived_at.is_(None)).order_by(Machine.name)
     if q.strip():
-        pattern = _like(q.strip())
-        query = query.where(
-            or_(*(col.like(pattern) for col in (Machine.code, Machine.name, Machine.serial, Machine.location)))
-        )
+        query = query.where(search_condition(q.strip()))
     machines = await db.scalars(query)
     videos, documents, last = await _counts(db, Video), await _counts(db, Document), await _last_maintenance(db)
     answered = await db.scalar(select(func.count()).where(Question.status == QuestionStatus.answered)) or 0
@@ -152,8 +146,14 @@ async def admin_users(_: PatronUser, db: SessionDep) -> list[AdminUser]:
 
 
 @router.get("/qr-stickers.pdf")
-async def sticker_pdf(_: PatronUser, db: SessionDep, ctx: CtxDep) -> Response:
-    machines = list(await db.scalars(select(Machine).where(Machine.archived_at.is_(None)).order_by(Machine.code)))
+async def sticker_pdf(
+    _: PatronUser, db: SessionDep, ctx: CtxDep, ids: Annotated[list[int] | None, Query()] = None
+) -> Response:
+    """Stickers for the machines the patron picked (`?ids=1&ids=2`), or for every machine (KAN-30)."""
+    query = select(Machine).where(Machine.archived_at.is_(None)).order_by(Machine.code)
+    if ids:
+        query = query.where(Machine.id.in_(ids))
+    machines = list(await db.scalars(query))
     return Response(
         qr.sticker_sheet(machines, ctx.settings.public_url),
         media_type="application/pdf",

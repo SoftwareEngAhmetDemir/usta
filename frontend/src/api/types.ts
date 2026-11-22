@@ -135,7 +135,11 @@ export interface MachineActions {
   upload_document: boolean;
   record_maintenance: boolean;
   archive: boolean; // "Makineyi kaldır": the machine's ustas or the patron (KAN-27)
+  qr: boolean; // QR image + printable sticker: the machine's ustas or the patron (KAN-29, KAN-30)
 }
+
+/** GET /machines?q= : ustas and the patron search every machine (code, name, serial, location). */
+export type MachineHit = Pick<Machine, 'id' | 'code' | 'name' | 'location'>;
 
 /** POST /machines → {id}: ustas and the patron add machines; an usta becomes its usta (KAN-27). */
 export interface MachineIn {

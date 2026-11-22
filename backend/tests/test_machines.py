@@ -1,6 +1,8 @@
 from collections.abc import Awaitable, Callable
+from io import BytesIO
 
 from httpx import AsyncClient
+from pypdf import PdfReader
 
 from app.auth.models import Role, User
 from app.machines.models import Machine
@@ -64,9 +66,9 @@ async def test_actions_depend_on_role_and_assignment(
     my_usta, other_usta = await make_user(Role.usta), await make_user(Role.usta)
     machine = await make_machine(ustas=[my_usta])
     expected = {
-        Role.worker: (True, False, False, False, False),
-        Role.technician: (True, False, False, True, False),
-        Role.patron: (True, True, True, True, True),
+        Role.worker: (True, False, False, False, False, False),
+        Role.technician: (True, False, False, True, False, False),
+        Role.patron: (True, True, True, True, True, True),
     }
     for role, flags in expected.items():
         page = (await (await client_as(await make_user(role))).get(f"/api/machines/{machine.id}")).json()
@@ -75,7 +77,42 @@ async def test_actions_depend_on_role_and_assignment(
     assert not (await (await client_as(other_usta)).get(f"/api/machines/{machine.id}")).json()["actions"][
         "record_video"
     ]
-    assert (await (await client_as(my_usta)).get(f"/api/machines/{machine.id}")).json()["actions"]["archive"]
+    mine = (await (await client_as(my_usta)).get(f"/api/machines/{machine.id}")).json()["actions"]
+    assert mine["archive"] and mine["qr"]
+    assert not (await (await client_as(other_usta)).get(f"/api/machines/{machine.id}")).json()["actions"]["qr"]
+
+
+async def test_usta_gets_qr_and_sticker_of_own_machine_only(
+    client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine
+) -> None:
+    usta = await make_user(Role.usta)
+    mine, other = await make_machine(ustas=[usta]), await make_machine()
+    c = await client_as(usta)
+    assert (await c.get(f"/api/machines/{mine.id}/qr.svg")).status_code == 200
+    sticker = await c.get(f"/api/machines/{mine.id}/sticker.pdf")
+    assert sticker.status_code == 200 and mine.code in PdfReader(BytesIO(sticker.content)).pages[0].extract_text()
+    assert (await c.get(f"/api/machines/{other.id}/qr.svg")).status_code == 403
+    assert (await c.get(f"/api/machines/{other.id}/sticker.pdf")).status_code == 403
+    patron = await client_as(await make_user(Role.patron))
+    assert (await patron.get(f"/api/machines/{other.id}/sticker.pdf")).status_code == 200
+    assert (await patron.get("/api/machines/999999/sticker.pdf")).status_code == 404
+
+
+async def test_ustas_and_patron_search_all_machines(
+    client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine
+) -> None:
+    usta = await make_user(Role.usta)
+    plasma, fork = await make_machine(name="Plazma Kesim"), await make_machine(name="Forklift 3")
+    c = await client_as(usta)  # an usta finds machines that are not theirs too
+    assert [m["id"] for m in (await c.get("/api/machines", params={"q": "forkl"})).json()] == [fork.id]
+    hit = (await c.get("/api/machines", params={"q": plasma.code})).json()
+    assert hit == [{"id": plasma.id, "code": plasma.code, "name": "Plazma Kesim", "location": plasma.location}]
+    assert len((await c.get("/api/machines")).json()) == 2
+    assert (await c.get("/api/machines", params={"q": "100%"})).json() == []  # % is literal
+    patron = await client_as(await make_user(Role.patron))
+    assert len((await patron.get("/api/machines")).json()) == 2
+    for role in (Role.worker, Role.technician):
+        assert (await (await client_as(await make_user(role))).get("/api/machines")).status_code == 403
 
 
 async def test_my_machines_for_usta_and_patron(
@@ -125,6 +162,11 @@ async def test_qr_svg_and_sticker_pdf_for_patron(
     assert b"<svg" in svg.content
     pdf = await patron.get("/api/admin/qr-stickers.pdf")
     assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF")
+    other = await make_machine(name="Seçilmeyen Makine")
+    picked = await patron.get("/api/admin/qr-stickers.pdf", params={"ids": [machine.id]})
+    assert picked.status_code == 200
+    text = "".join(page.extract_text() for page in PdfReader(BytesIO(picked.content)).pages)
+    assert machine.code in text and other.code not in text  # only the picked machine (KAN-30)
     worker = await client_as(await make_user())
     assert (await worker.get(f"/api/machines/{machine.id}/qr.svg")).status_code == 403
     assert (await worker.get("/api/admin/qr-stickers.pdf")).status_code == 403

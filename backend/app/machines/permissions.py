@@ -12,6 +12,7 @@ class MachineActions(BaseModel):
     upload_document: bool
     record_maintenance: bool
     archive: bool
+    qr: bool  # QR image + printable sticker: its ustas and the patron
 
 
 def is_usta_of(user: User, machine: Machine) -> bool:
@@ -26,9 +27,10 @@ def actions(user: User, machine: Machine) -> MachineActions:
         upload_document=patron,
         record_maintenance=patron or user.role == Role.technician,
         archive=machine.archived_at is None and (patron or is_usta_of(user, machine)),
+        qr=patron or is_usta_of(user, machine),
     )
 
 
 def can_answer(user: User, machine: Machine) -> bool:
-    """The machine's ustas answer its questions; the patron covers machines that have no usta yet."""
-    return is_usta_of(user, machine) or (user.role == Role.patron and not machine.ustas)
+    """The machine's ustas answer its questions; the patron may answer any question."""
+    return is_usta_of(user, machine) or user.role == Role.patron

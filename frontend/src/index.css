@@ -173,6 +173,7 @@ td.num { font-variant-numeric: tabular-nums; }
 .label-card img { width: 120px; height: 120px; }
 .label-card b { font: 600 17px var(--display); text-transform: uppercase; }
 .label-card code { font: 500 11px var(--mono); color: var(--ink-muted); }
+.label-card.no-print { opacity: 0.45; } /* left off the print (KAN-30) */
 
 /* ---------- scan ---------- */
 .scanner { background: #10161b; color: #fff; border-radius: 14px; padding: 22px 18px; display: flex; flex-direction: column; gap: 14px; align-items: center; text-align: center; }

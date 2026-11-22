@@ -20,6 +20,7 @@ const defaults = (): Routes => ({
   'GET /me/maintenance': [fx.maintenanceRecord],
   'GET /admin/machines?q=': fx.adminMachines,
   'GET /admin/users': fx.adminUsers,
+  'GET /machines?q=': fx.adminMachines.machines.map(({ id, code, name, location }) => ({ id, code, name, location })),
   'POST /auth/logout': null,
 });
 

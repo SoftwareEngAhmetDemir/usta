@@ -29,7 +29,7 @@ test('usta picks a video from the phone and uploads it (KAN-36, KAN-74)', async 
 });
 
 test('usta adds a new machine from home, then removes it (KAN-27)', async ({ page }) => {
-  const created = { ...fx.machinePage, machine: { ...fx.machinePage.machine, id: 12, code: 'CNC-7', name: 'CNC Torna' }, actions: { ...fx.machinePage.actions, archive: true } };
+  const created = { ...fx.machinePage, machine: { ...fx.machinePage.machine, id: 12, code: 'CNC-7', name: 'CNC Torna' }, actions: { ...fx.machinePage.actions, archive: true, qr: true } };
   const api = await mockBackend(page, { role: 'usta', routes: { 'POST /machines': { status: 201, body: { id: 12 } }, 'GET /machines/12': created, 'POST /machines/12/archive': { status: 204, body: null } } });
   await page.goto('/usta');
   await page.getByRole('link', { name: '+ Makine ekle' }).click();
@@ -38,8 +38,19 @@ test('usta adds a new machine from home, then removes it (KAN-27)', async ({ pag
   await page.getByRole('button', { name: 'Makineyi ekle' }).click();
   await expect(page).toHaveURL(/\/m\/12$/);
   await expect(page.getByRole('heading', { name: 'CNC Torna' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Etiketi yazdır (PDF)' })).toHaveAttribute('href', '/api/machines/12/sticker.pdf'); // QR for the new machine
   await page.getByRole('button', { name: 'Makineyi kaldır' }).click();
   await page.getByRole('button', { name: 'Evet, kaldır' }).click();
   await expect(page).toHaveURL(/\/usta$/);
   expect(api.calls.filter((c) => c.key === 'POST /machines/12/archive')).toHaveLength(1);
+});
+
+test('usta searches any machine from home and opens it', async ({ page }) => {
+  const forklift = { id: 2, code: 'FL-03', name: 'Forklift 3', location: 'Depo · Rampa 1' };
+  await mockBackend(page, { role: 'usta', routes: { 'GET /machines?q=fork': [forklift], 'GET /machines/2': { ...fx.machinePage, machine: { ...fx.machinePage.machine, id: 2, name: 'Forklift 3' } } } });
+  await page.goto('/usta');
+  await page.getByLabel('Makine ara').fill('fork');
+  await page.getByRole('link', { name: 'FL-03 · Forklift 3 · Depo · Rampa 1' }).click();
+  await expect(page).toHaveURL(/\/m\/2$/);
+  await expect(page.getByRole('heading', { name: 'Forklift 3' })).toBeVisible();
 });

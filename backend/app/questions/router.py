@@ -130,7 +130,7 @@ class UstaProfile(BaseModel):
 async def usta_profile(usta_id: int, user: CurrentUser, db: SessionDep) -> UstaProfile:
     """KAN-65: an usta's machines and the questions they answered."""
     usta = await db.get(User, usta_id)
-    if usta is None or usta.role != Role.usta:
+    if usta is None or usta.role not in (Role.usta, Role.patron):  # the patron answers too
         raise not_found("Usta")
     mine = select(Machine).where(Machine.ustas.any(User.id == usta.id), Machine.archived_at.is_(None))
     machines = await db.scalars(mine.order_by(Machine.name))

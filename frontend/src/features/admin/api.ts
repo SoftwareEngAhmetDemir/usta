@@ -21,4 +21,6 @@ export const addExternalVideo = (machineId: number, body: ExternalVideoIn): Prom
   postJson<ExternalVideo>(`/machines/${machineId}/external-videos`, body);
 
 export const qrImageUrl = (machineId: number): string => `${API_BASE}/machines/${machineId}/qr.svg`;
-export const stickerPdfUrl = `${API_BASE}/admin/qr-stickers.pdf`;
+/** Sticker PDF for the given machines; no ids = every machine (KAN-30). */
+export const stickerPdfUrl = (ids?: number[]): string =>
+  `${API_BASE}/admin/qr-stickers.pdf${ids ? `?${ids.map((id) => `ids=${id}`).join('&')}` : ''}`;

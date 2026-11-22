@@ -9,6 +9,7 @@ import { ArchiveMachine } from './components/ArchiveMachine';
 import { DocumentList } from './components/DocumentList';
 import { LanguageBar } from './components/LanguageBar';
 import { MachineHeader } from './components/MachineHeader';
+import { MachineQr } from './components/MachineQr';
 import { MaintenanceSection } from './components/MaintenanceSection';
 import { QaSection } from './components/QaSection';
 import { UstaList } from './components/UstaList';
@@ -51,6 +52,7 @@ export function MachinePage() {
             <DocumentList machineId={page.machine.id} documents={page.documents} canUpload={page.actions.upload_document} />
             <MaintenanceSection machineId={page.machine.id} records={page.maintenance} canRecord={page.actions.record_maintenance} highlightId={highlight} />
             <QaSection questions={page.questions} />
+            {page.actions.qr && <MachineQr machineId={page.machine.id} name={page.machine.name} />}
             {page.actions.archive && <ArchiveMachine pending={archive.pending} error={archive.error} onConfirm={() => void remove(page.machine.id)} />}
           </>
         )}
