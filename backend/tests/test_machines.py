@@ -78,7 +78,7 @@ async def test_actions_depend_on_role_and_assignment(
         "record_video"
     ]
     mine = (await (await client_as(my_usta)).get(f"/api/machines/{machine.id}")).json()["actions"]
-    assert mine["archive"] and mine["qr"]
+    assert mine["archive"] and mine["qr"] and mine["upload_document"]
     assert not (await (await client_as(other_usta)).get(f"/api/machines/{machine.id}")).json()["actions"]["qr"]
 
 

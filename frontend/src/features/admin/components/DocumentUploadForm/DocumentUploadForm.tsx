@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import type { AdminMachineRow, DocumentType } from '../../../../api';
+import type { DocumentType, Machine } from '../../../../api';
 import { Button } from '../../../../components/Button';
 import { ErrorMessage } from '../../../../components/ErrorMessage';
 import { Field } from '../../../../components/Field';
@@ -9,7 +9,7 @@ import type { DocumentUploadIn } from '../../api';
 import type { SubmitState } from '../../hooks/useFormSubmit';
 
 interface Props {
-  machines: AdminMachineRow[];
+  machines: Pick<Machine, 'id' | 'code' | 'name'>[];
   defaultMachineId: number | null;
   state: SubmitState;
   onSubmit: (body: DocumentUploadIn) => void;

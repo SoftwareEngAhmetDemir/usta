@@ -50,4 +50,21 @@ describe('RecorderPage (KAN-35, KAN-36, KAN-74)', () => {
     expect(Xhr.forms[1]?.get('title')).toBe('Servis anlatımı');
     expect((Xhr.forms[1]!.get('file') as File).name).toBe('servis.mp4');
   });
+
+  it('shows no camera, recording or file picking until a machine is chosen', async () => {
+    renderAuthed(<RecorderPage />, '/record');
+    expect(await screen.findByRole('option', { name: 'PK-105 · Plazma' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'makinenin QR kodunu okutun' })).toHaveAttribute('href', '/scan');
+    expect(screen.queryByLabelText(/telefondan video seç/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Kamerayı aç|Kaydı başlat/ })).not.toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText('Makine'), '1');
+    expect(screen.getByLabelText(/telefondan video seç/)).toBeInTheDocument();
+    expect(screen.queryByText(/makinenin QR kodunu okutun/)).not.toBeInTheDocument();
+  });
+
+  it('ignores a ?machine= the user may not record on', async () => {
+    renderAuthed(<RecorderPage />, '/record?machine=99');
+    expect(await screen.findByLabelText('Makine')).toHaveValue('');
+    expect(screen.queryByLabelText(/telefondan video seç/)).not.toBeInTheDocument();
+  });
 });

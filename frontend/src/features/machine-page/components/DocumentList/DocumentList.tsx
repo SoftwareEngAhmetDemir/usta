@@ -12,7 +12,7 @@ interface Props {
 }
 
 export function DocumentList({ machineId, documents, canUpload }: Props) {
-  const upload = canUpload ? <Link className="btn" data-size="small" to={`/panel?machine=${machineId}`}>Belge yükle</Link> : undefined;
+  const upload = canUpload ? <Link className="btn" data-size="small" to={`/m/${machineId}/documents/new`}>Belge yükle</Link> : undefined;
   return (
     <section aria-labelledby="docs-title" className="stack">
       <SectionTitle id="docs-title" title="Dokümanlar" extra={documents.length} />
@@ -36,6 +36,7 @@ export function DocumentList({ machineId, documents, canUpload }: Props) {
           </Link>
         ))}
       </div>
+      {documents.length > 0 && upload}
     </section>
   );
 }

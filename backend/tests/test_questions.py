@@ -226,3 +226,38 @@ async def test_ask_on_machine_with_no_knowledge(
         "status": "not_found",
         "ustas": [],
     }
+
+
+async def test_nobody_gets_or_answers_their_own_question(
+    client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine
+) -> None:
+    mehmet, hasan = await make_user(Role.usta, name="Mehmet Usta"), await make_user(Role.usta, name="Hasan Usta")
+    machine = await make_machine(ustas=[mehmet, hasan])
+    c = await client_as(mehmet)
+    not_found = (await c.post(f"/api/machines/{machine.id}/ask", json={"question": "Kantin kaçta?"})).json()
+    assert not_found["ustas"] == [{"id": hasan.id, "name": "Hasan Usta"}]  # "Ustaya sor" never offers yourself
+    sent = (await c.post(f"/api/machines/{machine.id}/questions", json={"question": "Zincir gerginliği?"})).json()
+    assert sent["recipients"] == [{"id": hasan.id, "name": "Hasan Usta"}]
+    assert (await c.get("/api/me/inbox")).json() == []
+    assert (await c.get(f"/api/questions/{sent['id']}")).status_code == 404
+    assert (await c.post(f"/api/questions/{sent['id']}/answer", data={"text": "x"})).status_code == 404
+    assert [q["id"] for q in (await (await client_as(hasan)).get("/api/me/inbox")).json()] == [sent["id"]]
+    assert (await (await client_as(mehmet)).get("/api/alerts")).json()["unread_count"] == 0
+
+
+async def test_only_usta_asking_goes_to_the_patron_or_is_refused(
+    client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine
+) -> None:
+    usta = await make_user(Role.usta)
+    machine = await make_machine(ustas=[usta])
+    c = await client_as(usta)
+    question = {"question": "Yağ ne zaman?"}
+    refused = await c.post(f"/api/machines/{machine.id}/questions", json=question)  # no patron yet: nobody else
+    assert refused.status_code == 409 and refused.json()["detail"] == "Bu soruyu cevaplayabilecek başka bir usta yok."
+    assert (await c.get("/api/me/questions")).json() == []  # nothing saved
+    patron = await make_user(Role.patron, name="Patron")
+    sent = (await c.post(f"/api/machines/{machine.id}/questions", json=question)).json()
+    assert sent["recipients"] == [{"id": patron.id, "name": "Patron"}]
+    p = await client_as(patron)  # the patron asking on a machine without ustas reaches nobody but themselves
+    lone = await make_machine()
+    assert (await p.post(f"/api/machines/{lone.id}/questions", json=question)).status_code == 409

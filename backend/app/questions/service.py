@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, StringConstraints
-from sqlalchemy import ColumnElement, select, true
+from sqlalchemy import ColumnElement, and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.protocol import AIUnavailableError
@@ -139,10 +139,19 @@ def inbox_question(q: Question, loc: Localizer) -> InboxQuestion:
 
 
 def answerable_by(user: User) -> ColumnElement[bool]:
-    """SQL condition: questions this user should answer (see permissions.can_answer)."""
+    """SQL condition: questions this user should answer (see permissions.can_answer); never their own."""
+    not_mine = Question.asked_by_id != user.id
     if user.role == Role.patron:
-        return true()
-    return Machine.ustas.any(User.id == user.id)
+        return not_mine
+    return and_(Machine.ustas.any(User.id == user.id), not_mine)
+
+
+async def recipients(db: AsyncSession, machine: Machine, asker: User) -> list[User]:
+    """Who gets an "Ustaya sor" question: the machine's ustas, else the patrons; never the asker themselves."""
+    ustas = [u for u in machine.ustas if u.id != asker.id]
+    if ustas:
+        return ustas
+    return list(await db.scalars(select(User).where(User.role == Role.patron, User.id != asker.id)))
 
 
 async def answered_on(db: AsyncSession, machine_id: int | None = None, usta_id: int | None = None) -> list[Question]:

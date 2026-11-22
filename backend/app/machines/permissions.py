@@ -24,7 +24,7 @@ def actions(user: User, machine: Machine) -> MachineActions:
     return MachineActions(
         ask=True,
         record_video=patron or is_usta_of(user, machine),
-        upload_document=patron,
+        upload_document=patron or is_usta_of(user, machine),
         record_maintenance=patron or user.role == Role.technician,
         archive=machine.archived_at is None and (patron or is_usta_of(user, machine)),
         qr=patron or is_usta_of(user, machine),

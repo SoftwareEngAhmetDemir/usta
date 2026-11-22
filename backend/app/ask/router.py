@@ -14,4 +14,4 @@ async def ask_machine(machine_id: int, body: AskIn, user: CurrentUser, db: Sessi
     machine = await db.get(Machine, machine_id)
     if machine is None:
         raise not_found("Makine")
-    return await ask(ctx, db, machine, body.question, user.language)
+    return await ask(ctx, db, machine, body.question, user)

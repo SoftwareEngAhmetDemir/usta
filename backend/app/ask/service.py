@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.protocol import AIUnavailableError
+from app.auth.models import User
 from app.context import AppContext
 from app.core.languages import localized
 from app.core.schemas import LocalizedText, PersonRef, UtcDateTime
@@ -80,8 +81,9 @@ async def _source(db: AsyncSession, chunk: SearchChunk) -> AnswerSource | None:
     return None
 
 
-async def ask(ctx: AppContext, db: AsyncSession, machine: Machine, question: str, language: str) -> Answered | NotFound:
-    not_found = NotFound(ustas=[person(u) for u in machine.ustas])
+async def ask(ctx: AppContext, db: AsyncSession, machine: Machine, question: str, asker: User) -> Answered | NotFound:
+    language = asker.language
+    not_found = NotFound(ustas=[person(u) for u in machine.ustas if u.id != asker.id])  # never offer yourself
     try:
         query = (await ctx.ai.embed([question], "query"))[0]
         hits = await nearest(db, machine.id, query, ctx.settings.ask_min_score)

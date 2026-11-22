@@ -88,8 +88,10 @@ async def test_document_upload_rules(client_as: ClientAs, make_user: MakeUser, m
     machine = await make_machine()
     body = {"type": "catalog", "title": "Katalog"}
     pdf = {"file": ("k.pdf", b"%PDF-1.4", "application/pdf")}
-    usta = await client_as(await make_user(Role.usta))
-    assert (await usta.post(f"/api/machines/{machine.id}/documents", data=body, files=pdf)).status_code == 403
+    other_usta = await client_as(await make_user(Role.usta))  # not this machine's usta
+    assert (await other_usta.post(f"/api/machines/{machine.id}/documents", data=body, files=pdf)).status_code == 403
+    worker = await client_as(await make_user())
+    assert (await worker.post(f"/api/machines/{machine.id}/documents", data=body, files=pdf)).status_code == 403
     patron = await client_as(await make_user(Role.patron))
     exe = {"file": ("x.exe", b"MZ", "application/octet-stream")}
     res = await patron.post(f"/api/machines/{machine.id}/documents", data=body, files=exe)
@@ -114,3 +116,20 @@ async def test_photo_document_is_read_by_ai(
     await ctx.jobs.drain()
     detail = (await patron.get(f"/api/documents/{doc['id']}")).json()
     assert detail["page_count"] == 1 and detail["summary"]["points"][0] == "Özet: Fotoğraftaki doküman metni"
+
+
+async def test_machine_usta_uploads_a_document(
+    client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine
+) -> None:
+    usta = await make_user(Role.usta, name="Mehmet Usta")
+    machine = await make_machine(ustas=[usta])
+    c = await client_as(usta)
+    assert (await c.get(f"/api/machines/{machine.id}")).json()["actions"]["upload_document"] is True
+    res = await c.post(
+        f"/api/machines/{machine.id}/documents",
+        data={"type": "user_manual", "title": "Kullanım kılavuzu"},
+        files={"file": ("k.pdf", two_page_pdf(), "application/pdf")},
+    )
+    assert res.status_code == 200 and res.json()["title"] == "Kullanım kılavuzu"
+    page = (await c.get(f"/api/machines/{machine.id}")).json()
+    assert [d["title"] for d in page["documents"]] == ["Kullanım kılavuzu"]

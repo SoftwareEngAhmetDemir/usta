@@ -34,7 +34,8 @@ async def upload_document(
     db: SessionDep,
     ctx: CtxDep,
 ) -> service.DocumentSummaryOut:
-    """KAN-33: patron uploads a PDF or photo of a document; text extraction + summary run in the background."""
+    """KAN-33: the patron or the machine's usta uploads a PDF or photo of a document; text extraction + summary
+    run in the background."""
     machine = await db.get(Machine, machine_id)
     if machine is None:
         raise not_found("Makine")

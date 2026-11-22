@@ -3,7 +3,7 @@ import { AdminMachinesPage, StickersPage, UsersPage } from '../features/admin';
 import { AlertsPage, AlertsProvider } from '../features/alerts';
 import { AskPage } from '../features/ask';
 import { AuthProvider, LoginPage, RegisterPage, RequireAuth } from '../features/auth';
-import { DocumentPage } from '../features/documents';
+import { DocumentPage, DocumentUploadPage } from '../features/documents';
 import { NewMachinePage } from '../features/machine-new';
 import { MachinePage } from '../features/machine-page';
 import { MaintenanceFormPage, TechHomePage } from '../features/maintenance';
@@ -28,6 +28,7 @@ export function AppRoutes() {
           <Route path="m/:machineId" element={<MachinePage />} />
           <Route path="m/:machineId/ask" element={<AskPage />} />
           <Route path="m/:machineId/maintenance" element={<MaintenanceFormPage />} />
+          <Route path="m/:machineId/documents/new" element={<DocumentUploadPage />} />
           <Route path="videos/:videoId" element={<VideoPage />} />
           <Route path="documents/:documentId" element={<DocumentPage />} />
           <Route path="my-questions" element={<MyQuestionsPage />} />

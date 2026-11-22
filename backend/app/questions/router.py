@@ -23,14 +23,17 @@ router = APIRouter(tags=["questions"])
 
 @router.post("/machines/{machine_id}/questions", response_model=QuestionSent)
 async def ask_usta(machine_id: int, body: AskIn, user: CurrentUser, db: SessionDep, ctx: CtxDep) -> QuestionSent:
-    """ "Ustaya sor" (KAN-62): save the question and alert the machine's ustas (the patron if it has none)."""
+    """ "Ustaya sor" (KAN-62): save the question and alert the machine's ustas (the patron if it has none),
+    never the asker."""
     machine = await db.get(Machine, machine_id)
     if machine is None:
         raise not_found("Makine")
+    recipients = await service.recipients(db, machine, user)
+    if not recipients:  # e.g. the machine's only usta asking: nobody else could answer
+        raise HTTPException(status.HTTP_409_CONFLICT, "Bu soruyu cevaplayabilecek başka bir usta yok.")
     q = Question(machine_id=machine.id, asked_by_id=user.id, text=body.question, language=user.language)
     db.add(q)
     await db.commit()
-    recipients = machine.ustas or list(await db.scalars(select(User).where(User.role == Role.patron)))
     preview = body.question if len(body.question) <= 80 else body.question[:77] + "…"
     await notify(
         db, ctx.hub, [u.id for u in recipients], f"Yeni soru · {machine.name}: “{preview}”", f"/usta/questions/{q.id}"
@@ -69,7 +72,7 @@ async def inbox(user: CurrentUser, db: SessionDep) -> list[InboxQuestion]:
 
 async def _open_question(db: SessionDep, question_id: int, user: User) -> Question:
     q = await db.get(Question, question_id)
-    if q is None or q.status != QuestionStatus.open or not can_answer(user, q.machine):
+    if q is None or q.status != QuestionStatus.open or q.asked_by_id == user.id or not can_answer(user, q.machine):
         raise not_found("Soru")
     return q
 

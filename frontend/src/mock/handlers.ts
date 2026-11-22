@@ -22,7 +22,7 @@ const now = () => new Date().toISOString();
 
 const ACTIONS: Record<Role, MachineActions> = {
   worker: { ask: true, record_video: false, upload_document: false, record_maintenance: false, archive: false, qr: false },
-  usta: { ask: true, record_video: true, upload_document: false, record_maintenance: false, archive: true, qr: true },
+  usta: { ask: true, record_video: true, upload_document: true, record_maintenance: false, archive: true, qr: true },
   technician: { ask: true, record_video: false, upload_document: false, record_maintenance: true, archive: false, qr: false },
   patron: { ask: true, record_video: true, upload_document: true, record_maintenance: true, archive: true, qr: true },
 };

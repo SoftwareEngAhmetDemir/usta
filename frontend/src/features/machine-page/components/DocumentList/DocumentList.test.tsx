@@ -13,10 +13,15 @@ describe('DocumentList', () => {
     expect(link).toHaveTextContent('Kullanım kılavuzu · 84 sayfa');
     expect(link).toHaveTextContent('Hava basıncı 6 bar olmalı.');
     expect(screen.getByText('Özet hazırlanıyor')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Belge yükle' })).not.toBeInTheDocument();
   });
-  it('shows an empty message with "Belge yükle" for the patron', () => {
+  it('shows an empty message with "Belge yükle" for the machine\'s usta or the patron', () => {
     render(<MemoryRouter><DocumentList machineId={2} documents={[]} canUpload /></MemoryRouter>);
     expect(screen.getByText('Henüz doküman yok.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Belge yükle' })).toHaveAttribute('href', '/panel?machine=2');
+    expect(screen.getByRole('link', { name: 'Belge yükle' })).toHaveAttribute('href', '/m/2/documents/new');
+  });
+  it('keeps "Belge yükle" under existing documents too', () => {
+    render(<MemoryRouter><DocumentList machineId={1} documents={[doc]} canUpload /></MemoryRouter>);
+    expect(screen.getByRole('link', { name: 'Belge yükle' })).toHaveAttribute('href', '/m/1/documents/new');
   });
 });
