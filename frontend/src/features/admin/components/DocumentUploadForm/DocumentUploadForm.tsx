@@ -16,6 +16,8 @@ interface Props {
 }
 
 const TYPES = Object.entries(DOCUMENT_TYPE_LABEL) as [DocumentType, string][];
+// What the backend can read (app/documents/extract.py); scanned PDFs and photos go through OCR.
+const DOCUMENT_ACCEPT = 'application/pdf,image/*,.docx,.xlsx,.csv,.txt';
 
 /** Upload a PDF or image to a machine with its type (KAN-33). */
 export function DocumentUploadForm({ machines, defaultMachineId, state, onSubmit }: Props) {
@@ -47,8 +49,8 @@ export function DocumentUploadForm({ machines, defaultMachineId, state, onSubmit
         </select>
       </Field>
       <Field label="Başlık" htmlFor="doc-title"><input id="doc-title" value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
-      <Field label="Dosya (PDF veya resim)" htmlFor="doc-file" error={error}>
-        <input id="doc-file" type="file" accept="application/pdf,image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+      <Field label="Dosya (PDF, Word, Excel, CSV, metin veya fotoğraf)" htmlFor="doc-file" error={error}>
+        <input id="doc-file" type="file" accept={DOCUMENT_ACCEPT} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
       </Field>
       {state.status === 'sending' && <ProgressBar fraction={state.progress} label="Yükleniyor" />}
       {state.status === 'error' && <ErrorMessage error={state.error} />}

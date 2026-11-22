@@ -17,3 +17,7 @@ __pycache__/
 uploads/
 
 .DS_Store
+
+# Local model/vector data (backend): Tesseract language files, Chroma vector store
+backend/.tessdata/
+backend/.chroma/

@@ -1,31 +1,28 @@
+"""Prompts for the only two LLM calls: the final "Makineye sor" answer and document summaries."""
+
 from app.core.languages import lang_name
-
-TRANSCRIBE = (
-    "Transcribe all speech in this audio. Return the spoken language as an ISO 639-1 code and the speech as "
-    "segments of one or two sentences with start and end times in seconds from the start of the audio. "
-    "Write exactly what is said; do not translate, summarize or add anything. "
-    "If there is no speech, return no segments."
-)
-
-
-def translate(source: str, target: str) -> str:
-    return (
-        f"Translate each string in the JSON array from {lang_name(source)} ({source}) "
-        f"to {lang_name(target)} ({target}). "
-        "These are instructions about operating and repairing industrial machines: keep part names, numbers, units "
-        "and safety warnings exact. Return a JSON array with the same number of strings, in the same order."
-    )
 
 
 def answer_system(language: str) -> str:
     return (
-        "You answer factory workers' questions about one specific, dangerous machine. "
-        "Use ONLY the numbered sources given (usta video transcripts, machine documents, earlier usta answers). "
-        "Never use outside knowledge and never guess: a wrong answer can injure someone. "
-        "If the sources do not clearly answer the question, return found=false. "
-        f"Otherwise write a short, practical answer in {lang_name(language)} ({language}) and list the numbers of "
-        "the sources you used in source_ids."
+        "You answer factory workers' questions about one specific, dangerous machine.\n"
+        "Rules:\n"
+        "1. Use ONLY the numbered sources given (usta video transcripts, machine documents, earlier usta answers). "
+        "Never use outside knowledge and never invent steps, values or settings: a wrong answer can injure someone.\n"
+        "2. If the sources do not clearly answer the question, return found=false.\n"
+        "3. If sources disagree, prefer the newer one (each source shows its date) and say briefly that they differ.\n"
+        f"4. Write the answer in {lang_name(language)} ({language}), even when the question and the sources are in "
+        "another language. For a procedure use short numbered steps.\n"
+        "5. Always keep every safety warning that appears in the sources you use (lockout, power off, PPE, "
+        "pressure release...).\n"
+        "6. Cite every claim: put the source number in brackets after it, e.g. [2], and list every number you used "
+        "in source_ids."
     )
+
+
+def answer_user(question: str, language: str, sources: list[str]) -> str:
+    numbered = "\n\n".join(f"[{i}] {text}" for i, text in enumerate(sources, start=1))
+    return f"Sources:\n{numbered}\n\nQuestion: {question}\n\nAnswer language: {lang_name(language)} ({language})"
 
 
 def summarize(language: str) -> str:
@@ -36,10 +33,14 @@ def summarize(language: str) -> str:
     )
 
 
-READ_IMAGE = (
-    "Extract all readable text from this image of a machine document, in its original language. Return plain text only."
-)
-
-
-def speak(language: str) -> str:
-    return f"Read this aloud in {lang_name(language)}, calmly and clearly, like an experienced technician:"
+def refine_transcript(language: str, context: str) -> str:
+    return (
+        f"These are numbered sentences of a speech-recognition transcript in {lang_name(language)} ({language}). "
+        f"An experienced factory usta is explaining a machine: {context}.\n"
+        "Correct only recognition errors: misheard or misspelled words, missing language-specific letters, technical "
+        "terms, part names, units and error codes (e.g. a spoken 'E iki yüz dört' becomes 'E-204'), punctuation and "
+        "capitalization.\n"
+        "Never add, remove, summarize, reorder or translate content. Never change the value of a number or the meaning "
+        "of a safety instruction. If you are not sure a word is wrong, keep it as it is.\n"
+        "Return every sentence exactly once with its id, in the same language."
+    )

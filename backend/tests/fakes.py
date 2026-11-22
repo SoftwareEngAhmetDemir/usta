@@ -1,4 +1,5 @@
-"""Deterministic stand-in for app.ai.protocol.AI, so tests never call Gemini."""
+"""Deterministic stand-ins for the engines in app.ai.interfaces, so tests never load models or call Google.
+The vector store in tests is the real ChromaVectorStore, in memory."""
 
 import hashlib
 import io
@@ -6,7 +7,18 @@ import math
 import wave
 from pathlib import Path
 
-from app.ai.protocol import AIUnavailableError, AnswerDraft, EmbedKind, Segment, Transcript
+from app.ai.chroma import ChromaVectorStore
+from app.ai.interfaces import (
+    AIServices,
+    AIUnavailableError,
+    AnswerDraft,
+    TranscriptionResult,
+    WhisperSegment,
+    Word,
+)  # fmt: skip
+from app.search.keyword import tokenize
+
+TESSDATA = Path(__file__).resolve().parent.parent / ".tessdata"  # eng + tur (+ ara), see CLAUDE.md
 
 
 def silent_wav(seconds: float = 0.5, rate: int = 24_000) -> bytes:
@@ -30,48 +42,118 @@ def trigram_vector(text: str, dims: int = 256) -> list[float]:
     return [v / norm for v in vec]
 
 
-class FakeAI:
-    def __init__(self) -> None:
-        self.transcript = Transcript(
-            language="tr",
-            segments=[
-                Segment(start_sec=0.0, end_sec=1.0, text="Önce makineyi kapatın."),
-                Segment(start_sec=1.0, end_sec=2.5, text="Sonra elektrotu yenisiyle değiştirin."),
-            ],
+def segment(start: float, text: str, seconds_per_word: float = 0.4, logprob: float = -0.2) -> WhisperSegment:
+    """A Whisper segment with evenly spaced word timings."""
+    words = [
+        Word(
+            start=round(start + i * seconds_per_word, 3), end=round(start + (i + 1) * seconds_per_word, 3), text=" " + w
         )
-        self.draft: AnswerDraft | None = None  # None: answer from the first source
-        self.fail: set[str] = set()  # method names that raise AIUnavailableError
-        self.calls: list[str] = []
+        for i, w in enumerate(text.split())
+    ]
+    return WhisperSegment(start=start, end=words[-1].end, text=text, avg_logprob=logprob, words=words)
 
-    def _call(self, name: str) -> None:
-        self.calls.append(name)
-        if name in self.fail:
-            raise AIUnavailableError(f"fake {name} failed")
 
-    async def transcribe(self, audio: Path) -> Transcript:
-        self._call("transcribe")
-        return self.transcript
+class _Failing:
+    def __init__(self) -> None:
+        self.fail = False
+        self.calls = 0
 
-    async def translate(self, texts: list[str], source: str, target: str) -> list[str]:
-        self._call("translate")
-        return [f"[{target}] {t}" for t in texts]
+    def _call(self) -> None:
+        self.calls += 1
+        if self.fail:
+            raise AIUnavailableError(f"fake {type(self).__name__} failed")
 
-    async def embed(self, texts: list[str], kind: EmbedKind) -> list[list[float]]:
-        self._call("embed")
+
+class FakeTranscriber(_Failing):
+    def __init__(self) -> None:
+        super().__init__()
+        self.hints: list[str | None] = []
+        self.result = TranscriptionResult(
+            language="tr",
+            segments=[segment(0.0, "Önce makineyi kapatın."), segment(1.4, "Sonra elektrotu yenisiyle değiştirin.")],
+        )
+
+    def transcribe(self, audio: Path, language_hint: str | None) -> TranscriptionResult:
+        self._call()
+        self.hints.append(language_hint)
+        return self.result
+
+
+class FakeEmbedder(_Failing):
+    model_version = "fake-trigram-v1"
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        self._call()
         return [trigram_vector(t) for t in texts]
 
-    async def speak(self, text: str, language: str) -> bytes:
-        self._call("speak")
-        return silent_wav()
+    def embed_query(self, text: str) -> list[float]:
+        self._call()
+        return trigram_vector(text)
+
+
+class FakeReranker(_Failing):
+    """Score = share of the question's words found in the passage."""
+
+    def score(self, query: str, passages: list[str]) -> list[float]:
+        self._call()
+        q = set(tokenize(query))
+        return [len(q & set(tokenize(p))) / (len(q) or 1) for p in passages]
+
+
+class FakeTranslator(_Failing):
+    def __init__(self) -> None:
+        super().__init__()
+        self.table: dict[str, str] = {}  # known translations; anything else becomes "[target] text"
+
+    async def translate(self, texts: list[str], source: str, target: str) -> list[str]:
+        if source == target:
+            return list(texts)
+        self._call()
+        return [self.table.get(t, f"[{target}] {t}") for t in texts]
+
+
+class FakeTTS(_Failing):
+    async def synthesize(self, text: str, language: str) -> bytes:
+        self._call()
+        return silent_wav(0.05 * len(text))  # about 20 characters per second
+
+
+class FakeLLM(_Failing):
+    def __init__(self) -> None:
+        super().__init__()
+        self.draft: AnswerDraft | None = None  # None: answer from the first source
+        self.sources: list[str] = []  # what the last answer() call was given
+        self.corrections: dict[str, str] = {}  # refine_transcript: sentence → corrected sentence (else unchanged)
+        self.context = ""  # what the last refine_transcript() was told about the video
 
     async def answer(self, question: str, language: str, sources: list[str]) -> AnswerDraft:
-        self._call("answer")
+        self._call()
+        self.sources = sources
         return self.draft or AnswerDraft(found=True, answer=f"[{language}] {sources[0]}", source_ids=[1])
 
+    async def refine_transcript(self, sentences: list[str], language: str, context: str) -> list[str]:
+        self._call()
+        self.context = context
+        return [self.corrections.get(s, s) for s in sentences]
+
     async def summarize(self, pages: list[str], language: str) -> list[str]:
-        self._call("summarize")
+        self._call()
         return [f"Özet: {pages[0].strip()[:40]}", "Bakımdan önce enerjiyi kesin."]
 
-    async def read_image(self, image: Path, mime_type: str) -> str:
-        self._call("read_image")
-        return "Fotoğraftaki doküman metni"
+
+class FakeAI:
+    """The fakes, typed, plus the AIServices built from them (what the app gets)."""
+
+    def __init__(self) -> None:
+        self.transcriber = FakeTranscriber()
+        self.embedder = FakeEmbedder()
+        self.reranker = FakeReranker()
+        self.vectors = ChromaVectorStore(None)
+        self.vectors.reset()  # the in-memory client is shared within the process
+        self.translator = FakeTranslator()
+        self.tts = FakeTTS()
+        self.llm = FakeLLM()
+        self.services = AIServices(
+            transcriber=self.transcriber, embedder=self.embedder, reranker=self.reranker, vectors=self.vectors,
+            translator=self.translator, tts=self.tts, llm=self.llm, ocr_languages="tur+eng", tessdata_dir=TESSDATA,
+        )  # fmt: skip

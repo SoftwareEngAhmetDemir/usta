@@ -27,7 +27,7 @@ export function AskPage() {
         <div key={i} className="stack">
           <div className="bubble-q">{x.question}</div>
           {x.result === null && x.error === null && <output className="card muted">Videolarda ve dokümanlarda aranıyor…</output>}
-          {x.result?.status === 'answered' && <AnswerCard answer={x.result.answer} sources={x.result.sources} />}
+          {x.result?.status === 'answered' && <AnswerCard answer={x.result.answer} sources={x.result.sources} askId={x.result.ask_id} />}
           {x.result?.status === 'not_found' && (
             <NotFoundCard question={x.question} ustas={x.result.ustas} sent={x.sent} sending={x.sending} onSend={(q) => sendToUsta(i, q)} />
           )}

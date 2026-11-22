@@ -13,10 +13,19 @@ dependencies = [
     "python-multipart>=0.0.17",
     "cryptography>=44",  # asyncmy needs it for MySQL 8 caching_sha2_password auth
     "google-genai>=1.30",  # Gemini (app/ai/gemini.py)
-    "pypdf>=5",  # document text per page
     "reportlab>=4",  # QR SVG + sticker PDF
     "sqladmin>=0.20",  # /admin (KAN-41)
     "itsdangerous>=2",  # SQLAdmin's signed session
+    # Knowledge pipelines (local, no LLM): transcription, embeddings, rerank, vectors, OCR, document parsing
+    "faster-whisper>=1.1",
+    "sentence-transformers>=3.3",
+    "chromadb>=1.0",
+    "numpy>=1.26",
+    "pdfplumber>=0.11",  # PDF text per page, tables, headings; pypdfium2 renders scanned pages for OCR
+    "python-docx>=1.1",
+    "openpyxl>=3.1",
+    "pytesseract>=0.3.13",  # needs the tesseract binary (brew install tesseract)
+    "httpx>=0.27",  # Google's free translate / speech endpoints (app/ai/google_free.py)
 ]
 
 [project.optional-dependencies]
@@ -26,6 +35,7 @@ dev = [
     "httpx>=0.28",
     "mypy>=1.13",
     "ruff>=0.8",
+    "pypdf>=5",  # tests read back generated sticker PDFs
 ]
 
 [tool.setuptools.packages.find]
@@ -52,7 +62,7 @@ exclude = ["^\\.venv/"]
 
 [[tool.mypy.overrides]]
 # No type hints shipped; calls into them are wrapped (str(), bytes) where values leave the module.
-module = ["reportlab.*", "wtforms.*"]
+module = ["reportlab.*", "wtforms.*", "faster_whisper.*", "pytesseract.*", "openpyxl.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

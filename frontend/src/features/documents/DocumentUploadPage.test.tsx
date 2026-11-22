@@ -26,7 +26,7 @@ describe('DocumentUploadPage (KAN-33)', () => {
     expect(screen.getByLabelText('Makine')).toHaveValue('1');
     await userEvent.type(screen.getByLabelText('Başlık'), 'Bakım talimatı');
     const pdf = new File(['%PDF'], 'b.pdf', { type: 'application/pdf' });
-    await userEvent.upload(screen.getByLabelText('Dosya (PDF veya resim)'), pdf);
+    await userEvent.upload(screen.getByLabelText('Dosya (PDF, Word, Excel, CSV, metin veya fotoğraf)'), pdf);
     await userEvent.click(screen.getByRole('button', { name: 'Yükle' }));
     expect(await screen.findByText('other page /m/1')).toBeInTheDocument();
     expect(OkXhr.url).toBe('/api/machines/1/documents');

@@ -1,17 +1,22 @@
 import { Link } from 'react-router';
 import type { AnswerSource } from '../../../../api';
-import { formatDate, formatDuration } from '../../../../lib/format';
+import { formatDate } from '../../../../lib/format';
 
-/** Video source opens the player at that second; document source opens the PDF at that page (KAN-61). */
+/** Video source opens the player at that second (with a keyframe of that part); document source opens the file
+ * at that page (KAN-61). Labels come from the backend. */
 export function SourceCard({ source }: { source: AnswerSource }) {
   switch (source.kind) {
     case 'video':
       return (
         <Link className="src" to={`/videos/${source.video_id}?t=${source.start_sec}`}>
-          <span className="k" aria-hidden="true">▶</span>
+          {source.snapshot_urls[0] ? (
+            <img className="k snap" src={source.snapshot_urls[0]} alt="" />
+          ) : (
+            <span className="k" aria-hidden="true">▶</span>
+          )}
           <span className="grow">
             <span className="strong">{source.title}</span><br />
-            <span className="where">VİDEO · {formatDuration(source.start_sec)}</span> <span className="muted">· {source.usta_name}</span>
+            <span className="where">VİDEO · {source.timestamp_label}</span> <span className="muted">· {source.usta_name}</span>
           </span>
         </Link>
       );
@@ -19,7 +24,11 @@ export function SourceCard({ source }: { source: AnswerSource }) {
       return (
         <Link className="src" to={`/documents/${source.document_id}?page=${source.page}`}>
           <span className="k" aria-hidden="true">📄</span>
-          <span className="grow"><span className="strong">{source.title}</span><br /><span className="where">SAYFA {source.page}</span></span>
+          <span className="grow">
+            <span className="strong">{source.title}</span><br />
+            <span className="where">SAYFA {source.page}</span>
+            {source.section_heading && <span className="muted"> · {source.section_heading}</span>}
+          </span>
         </Link>
       );
     case 'usta_answer':

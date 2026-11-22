@@ -218,6 +218,7 @@ export interface VideoProcessing {
   id: number;
   status: 'processing' | 'ready' | 'failed';
   steps: PipelineStep[];
+  job_id?: number | null; // on upload: GET /jobs/{id} or WS /ws/jobs/{id} follow the background job
 }
 
 // ---- documents (KAN-33, 45) ----
@@ -238,13 +239,25 @@ export interface DocumentDetail {
 // ---- ask the machine (KAN-60, 61, 62) ----
 
 export type AnswerSource =
-  | { kind: 'video'; video_id: number; title: string; usta_name: string; start_sec: number }
-  | { kind: 'document'; document_id: number; title: string; page: number }
+  | {
+      kind: 'video';
+      video_id: number;
+      title: string;
+      usta_name: string;
+      start_sec: number; // the player opens here
+      end_sec: number;
+      timestamp_label: string; // "1:05", formatted by the backend
+      snapshot_urls: string[]; // keyframes of that part of the video
+    }
+  | { kind: 'document'; document_id: number; title: string; file_name: string; page: number; section_heading: string | null }
   | { kind: 'usta_answer'; question_id: number; usta_name: string; answered_at: string };
 
 export type AskResult =
-  | { status: 'answered'; answer: LocalizedText; sources: AnswerSource[] }
-  | { status: 'not_found'; ustas: PersonRef[] };
+  | { status: 'answered'; answer: LocalizedText; sources: AnswerSource[]; confidence: number; ask_id: number }
+  | { status: 'not_found'; ustas: PersonRef[]; ask_id: number };
+
+/** POST /ask/{ask_id}/feedback: the worker rates an answer (kept for evaluating search). */
+export type AskFeedback = 'helpful' | 'not_helpful';
 
 export interface AskIn {
   question: string;

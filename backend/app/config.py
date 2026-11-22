@@ -19,14 +19,39 @@ class Settings(BaseSettings):
     # Address phones open from the QR sticker (the VS Code forwarded-port URL when shared).
     public_url: str = "http://localhost:5173"
 
-    # Gemini (app/ai). Without a key the AI features report "unavailable" instead of guessing.
+    # Gemini (the final answer + summaries only): an API key (AI Studio) or Vertex AI = a Cloud project + region,
+    # signed in with `gcloud auth application-default login`. Without it answers say "not found" and documents get
+    # no summary. Translation and dubbing speech use Google's free endpoints and need no setup.
     gemini_api_key: SecretStr | None = None
-    gemini_model: str = "gemini-2.5-flash"
-    gemini_embedding_model: str = "gemini-embedding-001"
-    gemini_tts_model: str = "gemini-2.5-flash-preview-tts"
-    gemini_tts_voice: str = "Charon"
-    # "Makineye sor": a source must be at least this similar to the question, else the answer is "not found".
-    ask_min_score: float = 0.6
+    vertex_project_id: str = ""
+    vertex_region: str = "us-central1"
+    gemini_model: str = "gemini-2.5-flash"  # only for the final answer and document summaries
+
+    # Knowledge pipelines (local models, CPU). Model names are Hugging Face ids; changing EMBEDDING_MODEL makes the
+    # startup re-embed every chunk (no re-transcription).
+    whisper_model: str = "small"  # faster-whisper size or path: tiny | base | small | medium | large-v3
+    whisper_compute_type: str = "int8"
+    embedding_model: str = "intfloat/multilingual-e5-base"
+    reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    chroma_dir: Path = Path(".chroma")  # vector store (persistent, in-process), resolved against backend/
+    tessdata_dir: Path | None = Path(".tessdata")  # Tesseract language files; None = the system's
+    ocr_languages: str = "tur+eng+ara"
+
+    # Topic segmentation (no LLM, TextTiling over embeddings + shared words): a new topic where the similarity dip
+    # is deeper than mean + TOPIC_DEPTH_SD standard deviations; higher = fewer topics.
+    topic_depth_sd: float = 0.5
+    topic_window: int = 2
+    topic_min_sec: float = 20.0
+    topic_max_sec: float = 180.0
+    snapshot_min_sharpness: float = 15.0  # Laplacian variance below this = blurry frame, skipped
+
+    # "Makineye sor": hybrid search (vector + BM25, RRF) → cross-encoder rerank → confidence gate → LLM.
+    ask_candidates: int = 20  # per retriever
+    ask_top_k: int = 5  # sent to the LLM after rerank
+    # Best rerank score (0..1) below this = "not found" without calling the LLM. Tuned 2026-11-22 on a live set:
+    # unrelated questions scored <= 0.044, correct-but-paraphrased ones 0.09-0.33; the LLM still refuses
+    # near-misses above the gate. Re-tune with scripts/eval_retrieval.py on the pilot questions (KAN-76).
+    ask_min_score: float = 0.08
 
     max_upload_mb: int = 1024
 
@@ -35,6 +60,13 @@ class Settings(BaseSettings):
     def _blank_is_none(cls, value: object) -> object:
         """`GEMINI_API_KEY=` (as in .env.example) means no key, not an empty one."""
         return value or None
+
+    @property
+    def ai_configured(self) -> bool:
+        return self.gemini_api_key is not None or bool(self.vertex_project_id)
+
+    def backend_path(self, path: Path) -> Path:
+        return (BACKEND_DIR / path).resolve()
 
     @property
     def uploads_path(self) -> Path:

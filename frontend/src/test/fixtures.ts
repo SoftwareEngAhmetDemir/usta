@@ -76,12 +76,14 @@ export const askAnswered: AskResult = {
   status: 'answered',
   answer: { text: "Elektrotun ucundaki çukur 1,5 mm'yi geçtiğinde elektrotu değiştirin.", lang: 'tr', dir: 'ltr' },
   sources: [
-    { kind: 'video', video_id: 1, title: 'Meme ve elektrot değişimi', usta_name: 'Mehmet Usta', start_sec: 108 },
-    { kind: 'document', document_id: 1, title: 'PK-105 Kullanım Kılavuzu', page: 37 },
+    { kind: 'video', video_id: 1, title: 'Meme ve elektrot değişimi', usta_name: 'Mehmet Usta', start_sec: 108, end_sec: 152, timestamp_label: '1:48', snapshot_urls: ['/uploads/videos/1/snapshots/t2_0.jpg'] },
+    { kind: 'document', document_id: 1, title: 'PK-105 Kullanım Kılavuzu', file_name: 'pk105-kilavuz.pdf', page: 37, section_heading: '7. Bakım' },
     { kind: 'usta_answer', question_id: 41, usta_name: 'Mehmet Usta', answered_at: '2026-11-08T10:00:00' },
   ],
+  confidence: 0.91,
+  ask_id: 301,
 };
-export const askNotFound: AskResult = { status: 'not_found', ustas: machinePage.ustas };
+export const askNotFound: AskResult = { status: 'not_found', ustas: machinePage.ustas, ask_id: 302 };
 export const questionSent: QuestionSent = { id: 51, status: 'open', recipients: machinePage.ustas };
 
 export const myQuestions: MyQuestion[] = [

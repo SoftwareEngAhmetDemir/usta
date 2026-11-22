@@ -1,5 +1,5 @@
-"""Stored translations. Write paths (after a question/answer/summary is saved) translate in background jobs;
-read paths only look up what is stored, so a page never waits for the AI."""
+"""Stored machine translations (app.ai.interfaces.Translator, not an LLM). Write paths (after a question/answer/
+summary is saved) translate in background jobs; read paths only look up what is stored, so a page never waits."""
 
 import hashlib
 import logging
@@ -7,7 +7,7 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.protocol import AI, AIUnavailableError
+from app.ai.interfaces import AIUnavailableError, Translator
 from app.context import AppContext
 from app.core.languages import LANGUAGES, localized
 from app.core.schemas import LocalizedText
@@ -49,14 +49,14 @@ class Localizer:
         return localized(text, lang), None
 
 
-async def translate(db: AsyncSession, ai: AI, texts: list[str], source: str, target: str) -> list[str]:
+async def translate(db: AsyncSession, translator: Translator, texts: list[str], source: str, target: str) -> list[str]:
     """Translate with the store as cache; raises AIUnavailableError when something new can't be translated."""
     if source == target:
         return list(texts)
     found = await stored(db, [(t, source) for t in texts], target)
     missing = list(dict.fromkeys(t for t in texts if source_hash(t, source) not in found))
     if missing:
-        for text, out in zip(missing, await ai.translate(missing, source, target), strict=True):
+        for text, out in zip(missing, await translator.translate(missing, source, target), strict=True):
             h = source_hash(text, source)
             found[h] = out
             await db.merge(Translation(source_hash=h, target_lang=target, text=out))
@@ -71,6 +71,6 @@ async def translate_everywhere(ctx: AppContext, items: list[tuple[str, str]]) ->
             for source in {lang for _, lang in items if lang != target}:
                 texts = [t for t, lang in items if lang == source and t]
                 try:
-                    await translate(db, ctx.ai, texts, source, target)
+                    await translate(db, ctx.ai.translator, texts, source, target)
                 except AIUnavailableError as e:
                     log.warning("translation %s→%s skipped: %s", source, target, e)

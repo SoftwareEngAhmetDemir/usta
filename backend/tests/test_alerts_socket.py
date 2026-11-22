@@ -27,7 +27,7 @@ async def _setup(ctx: AppContext) -> tuple[str, str, int]:
 
 
 def test_new_question_is_pushed_to_the_usta_live() -> None:
-    app = create_app(database_url=get_settings().test_database_url, ai=FakeAI(), resume_jobs=False)
+    app = create_app(database_url=get_settings().test_database_url, ai=FakeAI().services, background=False)
     with TestClient(app) as tc:
         portal = tc.portal
         assert portal is not None
@@ -39,11 +39,11 @@ def test_new_question_is_pushed_to_the_usta_live() -> None:
             alert = ws.receive_json()
             assert alert["path"] == f"/usta/questions/{res.json()['id']}"
             assert alert["read"] is False and "Pres neden durdu?" in alert["text"]
-        portal.call(app.state.ctx.jobs.drain)
+        portal.call(app.state.ctx.jobs.drain, app.state.ctx)
 
 
 def test_socket_without_session_is_refused() -> None:
-    app = create_app(database_url=get_settings().test_database_url, ai=FakeAI(), resume_jobs=False)
+    app = create_app(database_url=get_settings().test_database_url, ai=FakeAI().services, background=False)
     with TestClient(app) as tc, pytest.raises(WebSocketDisconnect) as closed, tc.websocket_connect("/api/ws/alerts"):
         pass
     assert closed.value.code == 1008

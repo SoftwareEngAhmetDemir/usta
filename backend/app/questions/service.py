@@ -1,20 +1,24 @@
 import logging
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, StringConstraints
 from sqlalchemy import ColumnElement, and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.protocol import AIUnavailableError
 from app.auth.models import Role, User
 from app.context import AppContext
 from app.core import storage
 from app.core.languages import lang_name
 from app.core.schemas import LocalizedText, PersonRef, UtcDateTime
+from app.documents.extract import BY_EXTENSION, SUPPORTED
+from app.documents.models import Document, DocumentType, SummaryStatus
+from app.documents.service import JOB_KIND as DOCUMENT_JOB
+from app.jobs.queue import Payload, Progress
 from app.machines.models import Machine
 from app.questions.models import Question, QuestionStatus
-from app.search.service import ChunkIn, replace_chunks
+from app.search.service import ChunkIn, Owner, embed_and_store
 from app.translations.service import Localizer, translate_everywhere
 
 log = logging.getLogger(__name__)
@@ -163,20 +167,38 @@ async def answered_on(db: AsyncSession, machine_id: int | None = None, usta_id: 
     return list(await db.scalars(query.order_by(Question.answered_at.desc(), Question.id.desc())))
 
 
-async def after_answer(ctx: AppContext, question_id: int) -> None:
-    """Job: translate the Q&A into every language and index the answer for "Makineye sor"."""
+async def translate_question(ctx: AppContext, payload: Payload, progress: Progress) -> None:
+    """Job "question_translate" {"question_id"}: the question in every language, for ustas reading other languages."""
     async with ctx.sessionmaker() as db:
-        q = await db.get(Question, question_id)
+        q = await db.get(Question, int(payload["question_id"]))
+        items = [(q.text, q.language)] if q else []
+    await translate_everywhere(ctx, items)
+
+
+async def after_answer(ctx: AppContext, payload: Payload, progress: Progress) -> None:
+    """Job "answer_index" {"question_id"}: translate the Q&A into every language and make the answer searchable
+    for "Makineye sor": the text as a chunk, an attached document through the document pipeline (an answer video
+    already goes through the video pipeline)."""
+    async with ctx.sessionmaker() as db:
+        q = await db.get(Question, int(payload["question_id"]))
         if q is None:
             return
         items = _texts([q])
-        question_text, answer_text = q.text, q.answer_text
-        machine_id = q.machine_id
+        question_id, machine_id, question_text, answer_text = q.id, q.machine_id, q.text, q.answer_text
+        language, answer_file, usta_id = q.answer_language or q.language, q.answer_file, q.answered_by_id
+        title = f"Usta cevabı: {q.text[:180]}"
     await translate_everywhere(ctx, items)
-    if answer_text:
-        async with ctx.sessionmaker() as db:
-            try:
-                chunk = ChunkIn(text=f"{question_text}\n{answer_text}")
-                await replace_chunks(db, ctx.ai, machine_id, "usta_answer", [chunk], question_id=question_id)
-            except AIUnavailableError as e:  # the answer is saved; it is just not searchable yet
-                log.warning("answer %s not indexed: %s", question_id, e)
+    async with ctx.sessionmaker() as db:
+        if answer_text:
+            chunk = ChunkIn(text=f"{question_text}\n{answer_text}", language=language, title=title)
+            await embed_and_store(db, ctx.ai, machine_id, Owner(question_id=question_id), [chunk])
+        mime = BY_EXTENSION.get(Path(answer_file).suffix.lower()) if answer_file else None
+        if answer_file and mime in SUPPORTED:
+            doc = Document(
+                machine_id=machine_id, title=title, type=DocumentType.technical_info, file=answer_file,
+                file_name=Path(answer_file).name, mime_type=mime, language=language, uploaded_by_id=usta_id,
+                summary_status=SummaryStatus.preparing,
+            )  # fmt: skip
+            db.add(doc)
+            await db.commit()
+            await ctx.jobs.enqueue(DOCUMENT_JOB, {"document_id": doc.id})

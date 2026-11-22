@@ -12,7 +12,7 @@ describe('DocumentUploadForm', () => {
     await userEvent.selectOptions(screen.getByLabelText('Tür'), 'Katalog');
     await userEvent.type(screen.getByLabelText('Başlık'), 'Yedek parça kataloğu');
     const pdf = new File(['%PDF'], 'k.pdf', { type: 'application/pdf' });
-    await userEvent.upload(screen.getByLabelText('Dosya (PDF veya resim)'), pdf);
+    await userEvent.upload(screen.getByLabelText('Dosya (PDF, Word, Excel, CSV, metin veya fotoğraf)'), pdf);
     await userEvent.click(screen.getByRole('button', { name: 'Yükle' }));
     expect(onSubmit).toHaveBeenCalledWith({ machineId: 2, type: 'catalog', title: 'Yedek parça kataloğu', file: pdf });
   });

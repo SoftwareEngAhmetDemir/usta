@@ -1,9 +1,16 @@
 from collections.abc import Awaitable, Callable
 
-from app.ai.protocol import AnswerDraft
+import pytest
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.ai.interfaces import AnswerDraft
+from app.ask.models import AskLog
 from app.auth.models import Role, User
 from app.context import AppContext
+from app.documents.models import Document
 from app.machines.models import Machine
+from app.search.models import Chunk
 from tests.conftest import ClientAs
 from tests.fakes import FakeAI
 
@@ -25,7 +32,7 @@ async def test_worker_asks_usta_who_answers_and_worker_sees_it(
     assert sent.status_code == 200
     qid = sent.json()["id"]
     assert sent.json() == {"id": qid, "status": "open", "recipients": [{"id": usta.id, "name": "Mehmet Usta"}]}
-    await ctx.jobs.drain()  # translations
+    await ctx.jobs.drain(ctx)  # translations
 
     alerts = (await usta_c.get("/api/alerts")).json()
     assert alerts["unread_count"] == 1
@@ -46,7 +53,7 @@ async def test_worker_asks_usta_who_answers_and_worker_sees_it(
 
     answered = await usta_c.post(f"/api/questions/{qid}/answer", data={"text": "Önce enerjiyi kesin."})
     assert answered.status_code == 200 and answered.json() == {"id": qid, "status": "answered"}
-    await ctx.jobs.drain()
+    await ctx.jobs.drain(ctx)
 
     mine = (await worker.get("/api/me/questions")).json()
     assert mine[0]["status"] == "answered"
@@ -128,7 +135,7 @@ async def test_usta_profile(
     worker = await client_as(await make_user())
     qid = (await worker.post(f"/api/machines/{machine.id}/questions", json={"question": "Yağ ne zaman?"})).json()["id"]
     await (await client_as(usta)).post(f"/api/questions/{qid}/answer", data={"text": "Haftada bir."})
-    await ctx.jobs.drain()
+    await ctx.jobs.drain(ctx)
     profile = (await worker.get(f"/api/ustas/{usta.id}")).json()
     assert profile["name"] == "Hasan Usta"
     assert profile["machines"] == [{"id": machine.id, "code": machine.code, "name": machine.name}]
@@ -166,10 +173,10 @@ async def test_ask_answers_from_an_earlier_usta_answer_with_its_source(
     usta = await make_user(Role.usta, name="Mehmet Usta")
     machine = await make_machine(ustas=[usta])
     qid = await _answered_question(client_as, make_user, machine, usta)
-    await ctx.jobs.drain()  # indexes the answer
+    await ctx.jobs.drain(ctx)  # indexes the answer
     c = await client_as(await make_user(language="en"))
     res = (await c.post(f"/api/machines/{machine.id}/ask", json={"question": "Elektrot nasıl değiştirilir?"})).json()
-    assert res["status"] == "answered"
+    assert res["status"] == "answered" and res["confidence"] == 1.0 and res["ask_id"]
     assert res["answer"]["lang"] == "en" and res["answer"]["text"].startswith("[en] ")
     assert res["sources"] == [
         {
@@ -187,12 +194,12 @@ async def test_ask_unrelated_question_is_not_found_with_ustas(
     usta = await make_user(Role.usta, name="Mehmet Usta")
     machine = await make_machine(ustas=[usta])
     await _answered_question(client_as, make_user, machine, usta)
-    await ctx.jobs.drain()
+    await ctx.jobs.drain(ctx)
     c = await client_as(await make_user())
     res = (
         await c.post(f"/api/machines/{machine.id}/ask", json={"question": "Kantinde öğle yemeği saat kaçta?"})
     ).json()
-    assert res == {"status": "not_found", "ustas": [{"id": usta.id, "name": "Mehmet Usta"}]}
+    assert res == {"status": "not_found", "ustas": [{"id": usta.id, "name": "Mehmet Usta"}], "ask_id": res["ask_id"]}
 
 
 async def test_ask_never_trusts_an_answer_without_valid_sources(
@@ -201,7 +208,7 @@ async def test_ask_never_trusts_an_answer_without_valid_sources(
     usta = await make_user(Role.usta)
     machine = await make_machine(ustas=[usta])
     await _answered_question(client_as, make_user, machine, usta)
-    await ctx.jobs.drain()
+    await ctx.jobs.drain(ctx)
     c = await client_as(await make_user())
     question = {"question": "Elektrot nasıl değiştirilir?"}
     for draft in (
@@ -209,11 +216,13 @@ async def test_ask_never_trusts_an_answer_without_valid_sources(
         AnswerDraft(found=True, answer="Uydurma cevap", source_ids=[]),
         AnswerDraft(found=True, answer="Uydurma cevap", source_ids=[7]),  # not one of the given sources
     ):
-        ai.draft = draft
+        ai.llm.draft = draft
         res = (await c.post(f"/api/machines/{machine.id}/ask", json=question)).json()
         assert res["status"] == "not_found", draft
-    ai.draft = None
-    ai.fail.add("embed")  # AI down → not found, never an error page
+    ai.llm.draft = None
+    ai.llm.fail = True  # LLM down → not found, never an error page
+    assert (await c.post(f"/api/machines/{machine.id}/ask", json=question)).json()["status"] == "not_found"
+    ai.llm.fail, ai.embedder.fail = False, True  # local model broken → not found too
     assert (await c.post(f"/api/machines/{machine.id}/ask", json=question)).json()["status"] == "not_found"
 
 
@@ -222,10 +231,57 @@ async def test_ask_on_machine_with_no_knowledge(
 ) -> None:
     machine = await make_machine()
     c = await client_as(await make_user())
-    assert (await c.post(f"/api/machines/{machine.id}/ask", json={"question": "Nasıl çalışır?"})).json() == {
-        "status": "not_found",
-        "ustas": [],
-    }
+    res = (await c.post(f"/api/machines/{machine.id}/ask", json={"question": "Nasıl çalışır?"})).json()
+    assert res == {"status": "not_found", "ustas": [], "ask_id": res["ask_id"]}
+
+
+async def test_confidence_gate_skips_the_llm_and_every_question_is_logged(
+    client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine, ctx: AppContext, ai: FakeAI, db: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:  # fmt: skip
+    monkeypatch.setattr(ctx.settings, "ask_min_score", 0.5)
+    usta = await make_user(Role.usta)
+    machine = await make_machine(ustas=[usta])
+    await _answered_question(client_as, make_user, machine, usta)
+    await ctx.jobs.drain(ctx)
+    worker_user = await make_user()
+    c = await client_as(worker_user)
+    weak = (await c.post(f"/api/machines/{machine.id}/ask", json={"question": "Elektrot rengi ne?"})).json()
+    assert weak["status"] == "not_found" and ai.llm.calls == 0  # best rerank score 1/3 < 0.5: no LLM call
+    good = (await c.post(f"/api/machines/{machine.id}/ask", json={"question": "Elektrot nasıl değiştirilir?"})).json()
+    assert good["status"] == "answered" and ai.llm.calls == 1
+
+    logs = list(await db.scalars(select(AskLog).where(AskLog.machine_id == machine.id).order_by(AskLog.id)))
+    assert [(x.found, x.llm_called) for x in logs] == [(False, False), (True, True)]
+    chunk_id = await db.scalar(select(Chunk.id).where(Chunk.machine_id == machine.id))
+    assert logs[1].retrieved[0]["chunk_id"] == chunk_id and logs[1].retrieved[0]["keyword_rank"] == 1
+    assert logs[1].cited_chunk_ids == [chunk_id] and logs[1].answer and logs[1].confidence == 1.0
+
+    other = await client_as(await make_user())
+    assert (await other.post(f"/api/ask/{good['ask_id']}/feedback", json={"feedback": "helpful"})).status_code == 404
+    assert (await c.post(f"/api/ask/{good['ask_id']}/feedback", json={"feedback": "maybe"})).status_code == 422
+    assert (await c.post(f"/api/ask/{good['ask_id']}/feedback", json={"feedback": "helpful"})).status_code == 204
+    await db.refresh(logs[1])
+    assert logs[1].feedback == "helpful" and logs[1].feedback_at is not None
+
+
+async def test_an_answer_file_is_indexed_through_the_document_pipeline(
+    client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine, ctx: AppContext, db: AsyncSession
+) -> None:
+    usta = await make_user(Role.usta)
+    machine = await make_machine(ustas=[usta])
+    worker = await client_as(await make_user())
+    qid = (await worker.post(f"/api/machines/{machine.id}/questions", json={"question": "Yağ hangisi?"})).json()["id"]
+    note = b"YAG:\nHidrolik yag ISO VG 46 kullanin.\n"
+    res = await (await client_as(usta)).post(
+        f"/api/questions/{qid}/answer", files={"file": ("yag.txt", note, "text/plain")}
+    )
+    assert res.status_code == 200
+    await ctx.jobs.drain(ctx)
+    doc = await db.scalar(select(Document).where(Document.machine_id == machine.id))
+    assert doc is not None and doc.title == "Usta cevabı: Yağ hangisi?" and doc.file_name.endswith(".txt")
+    chunk = await db.scalar(select(Chunk).where(Chunk.document_id == doc.id))
+    assert chunk is not None and "ISO VG 46" in chunk.text
 
 
 async def test_nobody_gets_or_answers_their_own_question(
@@ -261,3 +317,21 @@ async def test_only_usta_asking_goes_to_the_patron_or_is_refused(
     p = await client_as(patron)  # the patron asking on a machine without ustas reaches nobody but themselves
     lone = await make_machine()
     assert (await p.post(f"/api/machines/{lone.id}/questions", json=question)).status_code == 409
+
+
+async def test_a_question_in_another_language_also_searches_its_machine_translation(
+    client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine, ctx: AppContext, ai: FakeAI
+) -> None:
+    usta = await make_user(Role.usta)
+    machine = await make_machine(ustas=[usta])
+    await _answered_question(client_as, make_user, machine, usta)  # Turkish knowledge
+    await ctx.jobs.drain(ctx)
+    arabic = await client_as(await make_user(language="ar"))
+    question = {"question": "كيف أغير القطب؟"}
+    ai.translator.fail = True  # no machine translation: only the Arabic words are searched
+    assert (await arabic.post(f"/api/machines/{machine.id}/ask", json=question)).json()["status"] == "not_found"
+    ai.translator.fail = False
+    ai.translator.table["كيف أغير القطب؟"] = "Elektrot nasıl değiştirilir?"
+    res = (await arabic.post(f"/api/machines/{machine.id}/ask", json=question)).json()
+    assert res["status"] == "answered" and res["answer"]["lang"] == "ar"
+    assert ai.llm.sources and "Enerjiyi kesip elektrotu sökün." in ai.llm.sources[0]

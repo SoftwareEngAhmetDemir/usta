@@ -15,7 +15,6 @@ from app.machines.permissions import can_answer
 from app.questions import service
 from app.questions.models import Question, QuestionStatus
 from app.questions.service import AnswerSent, AskIn, InboxQuestion, MyQuestion, QaEntry, QuestionSent, person
-from app.translations.service import translate_everywhere
 from app.videos.router import create_video
 
 router = APIRouter(tags=["questions"])
@@ -38,7 +37,7 @@ async def ask_usta(machine_id: int, body: AskIn, user: CurrentUser, db: SessionD
     await notify(
         db, ctx.hub, [u.id for u in recipients], f"Yeni soru · {machine.name}: “{preview}”", f"/usta/questions/{q.id}"
     )
-    ctx.jobs.spawn(translate_everywhere(ctx, [(q.text, q.language)]), name=f"question-{q.id}-translate")
+    await ctx.jobs.enqueue("question_translate", {"question_id": q.id})
     return QuestionSent(id=q.id, status="open", recipients=[person(u) for u in recipients])
 
 
@@ -101,7 +100,7 @@ async def answer(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Bir cevap yazın veya video/dosya ekleyin.")
     if video is not None and has_video:
         title = f"Cevap: {q.text[:180]}"
-        q.answer_video_id = (await create_video(ctx, db, q.machine, user, title, video)).id
+        q.answer_video_id = (await create_video(ctx, db, q.machine, user, title, video))[0].id
     if file is not None and has_file:
         q.answer_file = storage.save_upload(file, f"answers/{q.id}")
     q.answer_text = text or None
@@ -112,7 +111,7 @@ async def answer(
     await db.commit()
     preview = q.text if len(q.text) <= 80 else q.text[:77] + "…"
     await notify(db, ctx.hub, [q.asked_by_id], f"{user.name} sorunu cevapladı: “{preview}”", "/my-questions")
-    ctx.jobs.spawn(service.after_answer(ctx, q.id), name=f"question-{q.id}-answered")
+    await ctx.jobs.enqueue("answer_index", {"question_id": q.id})
     return AnswerSent(id=q.id, status="answered")
 
 

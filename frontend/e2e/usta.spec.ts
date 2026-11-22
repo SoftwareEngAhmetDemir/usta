@@ -68,7 +68,7 @@ test('usta adds a document to their machine from the machine page (KAN-33)', asy
   await expect(page).toHaveURL(/\/m\/1\/documents\/new$/);
   await page.getByLabel('Tür').selectOption('Kullanım talimatı');
   await page.getByLabel('Başlık').fill('Bakım talimatı');
-  await page.getByLabel('Dosya (PDF veya resim)').setInputFiles({ name: 'talimat.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF') });
+  await page.getByLabel('Dosya (PDF, Word, Excel, CSV, metin veya fotoğraf)').setInputFiles({ name: 'talimat.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF') });
   await page.getByRole('button', { name: 'Yükle' }).click();
   await expect(page).toHaveURL(/\/m\/1$/);
   expect(api.calls.filter((c) => c.key === 'POST /machines/1/documents')).toHaveLength(1);

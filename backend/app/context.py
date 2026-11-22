@@ -2,10 +2,10 @@ from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.ai.protocol import AI
+from app.ai.interfaces import AIServices
 from app.alerts.hub import AlertHub
 from app.config import Settings
-from app.core.jobs import JobRunner
+from app.jobs.queue import JobQueue
 
 
 @dataclass
@@ -14,6 +14,6 @@ class AppContext:
 
     settings: Settings
     sessionmaker: async_sessionmaker[AsyncSession]
-    ai: AI
-    jobs: JobRunner
+    ai: AIServices
+    jobs: JobQueue
     hub: AlertHub

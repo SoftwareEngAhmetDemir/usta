@@ -13,6 +13,7 @@ from app.deps import CtxDep, SessionDep, forbidden, not_found
 from app.machines.models import Machine
 from app.machines.permissions import actions
 from app.videos import pipeline
+from app.videos.cleanup import remove_video
 from app.videos.models import UPLOAD_PIPELINE, StepStatus, Video, VideoStep
 from app.videos.service import Preparation, VideoDetail, VideoProcessing, detail, load_steps, preparation, processing
 
@@ -29,36 +30,51 @@ async def _video(db: SessionDep, video_id: int) -> Video:
 
 
 async def create_video(
-    ctx: AppContext, db: SessionDep, machine: Machine, author: User, title: str, file: UploadFile
-) -> Video:
-    """Save an uploaded clip and start the upload pipeline. Also used for usta answers with a video."""
+    ctx: AppContext,
+    db: SessionDep,
+    machine: Machine,
+    author: User,
+    title: str,
+    file: UploadFile,
+    language_hint: str | None = None,
+) -> tuple[Video, int]:
+    """Save an uploaded clip and queue the upload pipeline; returns the video and its job id. Also used for usta
+    answers with a video."""
     if not (file.content_type or "").startswith("video/"):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Lütfen bir video dosyası seçin.")
+    if language_hint is not None and language_hint not in LANGUAGES:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Bu dil desteklenmiyor.")
     video = Video(
-        machine_id=machine.id, author_id=author.id, title=title.strip(), original="", language=author.language
-    )
+        machine_id=machine.id, author_id=author.id, title=title.strip(), original="",
+        language=language_hint or author.language, language_hint=language_hint,
+    )  # fmt: skip
     db.add(video)
     await db.flush()
     ext = Path(file.filename or "").suffix.lower()[:6] or ".mp4"
     video.original = storage.save_upload(file, pipeline.video_dir(video.id), f"original{ext}")
     await db.commit()
     await pipeline.create_steps(db, video.id, UPLOAD_PIPELINE, author.id, first_done=True)
-    pipeline.start(ctx, video.id, UPLOAD_PIPELINE)
-    return video
+    return video, await pipeline.start(ctx, video.id, UPLOAD_PIPELINE)
 
 
 @router.post("/machines/{machine_id}/videos", response_model=VideoProcessing)
 async def upload_video(
-    machine_id: int, title: Title, file: Annotated[UploadFile, File()], user: CurrentUser, db: SessionDep, ctx: CtxDep
+    machine_id: int,
+    title: Title,
+    file: Annotated[UploadFile, File()],
+    user: CurrentUser,
+    db: SessionDep,
+    ctx: CtxDep,
+    language: Annotated[str | None, Form()] = None,
 ) -> VideoProcessing:
-    """KAN-35/36/74: an usta's clip; returns the processing steps to poll."""
+    """KAN-35/36/74: an usta's clip (optional spoken-language hint); returns the steps and the job id to follow."""
     machine = await db.get(Machine, machine_id)
     if machine is None:
         raise not_found("Makine")
     if not actions(user, machine).record_video:
         raise forbidden()
-    video = await create_video(ctx, db, machine, user, title, file)
-    return processing(video, (await load_steps(db, [video.id]))[video.id])
+    video, job_id = await create_video(ctx, db, machine, user, title, file, language or None)
+    return processing(video, (await load_steps(db, [video.id]))[video.id]).model_copy(update={"job_id": job_id})
 
 
 @router.get("/videos/{video_id}/processing", response_model=VideoProcessing)
@@ -86,7 +102,7 @@ async def prepare_language(video_id: int, lang: str, user: CurrentUser, db: Sess
     if not any(s.key == "transcribe" and s.status == StepStatus.done for s in steps.get(UPLOAD_PIPELINE, [])):
         raise HTTPException(status.HTTP_409_CONFLICT, "Videonun konuşma metni henüz hazır değil.")
     created = await pipeline.create_steps(db, video.id, lang, user.id)
-    pipeline.start(ctx, video.id, lang)
+    await pipeline.start(ctx, video.id, lang)
     return preparation(lang, created)
 
 
@@ -103,5 +119,15 @@ async def retry_step(video_id: int, lang: str, step: str, _: CurrentUser, db: Se
         .values(status=StepStatus.waiting, error=None)
     )
     await db.commit()
-    pipeline.start(ctx, video.id, lang)
+    await pipeline.start(ctx, video.id, lang)
     return preparation(lang, (await load_steps(db, [video.id]))[video.id][lang])
+
+
+@router.delete("/videos/{video_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_video(video_id: int, user: CurrentUser, db: SessionDep, ctx: CtxDep) -> None:
+    """Delete a video with everything made from it: chunks and vectors, topics, snapshots, subtitles, dubs."""
+    video = await _video(db, video_id)
+    machine = await db.get(Machine, video.machine_id)
+    if machine is None or not actions(user, machine).record_video:
+        raise forbidden()
+    await remove_video(ctx, db, video)

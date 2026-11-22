@@ -1,9 +1,12 @@
-"""ffmpeg/ffprobe wrappers. All heavy work runs in subprocesses, at most 2 at a time."""
+"""ffmpeg/ffprobe wrappers (subprocesses, at most 2 at a time) and the dub-track assembly."""
 
 import asyncio
 import json
 import wave
 from pathlib import Path
+
+import numpy as np
+from numpy.typing import NDArray
 
 _LIMIT = asyncio.Semaphore(2)
 
@@ -59,15 +62,36 @@ async def thumbnail(src: Path, dst: Path, at_sec: float) -> None:
     )
 
 
-async def speech_audio(src: Path, dst: Path) -> None:
-    """Small mono MP3 for transcription."""
+async def extract_audio(src: Path, dst: Path) -> None:
+    """16 kHz mono 16-bit WAV: what Whisper expects."""
     await _run(
-        "ffmpeg", "-y", "-v", "error", "-i", str(src), "-vn", "-ac", "1", "-ar", "16000", "-b:a", "48k", str(dst)
+        "ffmpeg", "-y", "-v", "error", "-i", str(src), "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", str(dst)
     )
 
 
-async def background_audio(src: Path, dst: Path) -> None:
-    await _run("ffmpeg", "-y", "-v", "error", "-i", str(src), "-vn", "-ac", "2", "-ar", "44100", str(dst))
+async def gray_frame(src: Path, at_sec: float, width: int = 320) -> NDArray[np.uint8] | None:
+    """One frame as a small grayscale image (for sharpness), or None past the end of the video."""
+    out = await _run(
+        "ffmpeg", "-v", "error", "-ss", f"{at_sec:.2f}", "-i", str(src), "-frames:v", "1",
+        "-vf", f"scale={width}:-2,format=gray", "-f", "image2pipe", "-vcodec", "pgm", "-",
+    )  # fmt: skip
+    return _pgm(out)
+
+
+def _pgm(data: bytes) -> NDArray[np.uint8] | None:
+    """Binary PGM (P5) → 2-D array."""
+    parts = data.split(maxsplit=4)
+    if len(parts) < 5 or parts[0] != b"P5":
+        return None
+    w, h = int(parts[1]), int(parts[2])
+    pixels = np.frombuffer(parts[4][: w * h], dtype=np.uint8)
+    return pixels.reshape(h, w) if pixels.size == w * h else None
+
+
+async def save_frame(src: Path, at_sec: float, dst: Path, max_width: int = 640) -> None:
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    await _run("ffmpeg", "-y", "-v", "error", "-ss", f"{at_sec:.2f}", "-i", str(src), "-frames:v", "1",
+               "-vf", f"scale='min({max_width},iw)':-2", "-q:v", "3", str(dst))  # fmt: skip
 
 
 def wav_seconds(path: Path) -> float:
@@ -75,32 +99,52 @@ def wav_seconds(path: Path) -> float:
         return float(w.getnframes()) / float(w.getframerate())
 
 
-async def mix_dub(video: Path, background: Path, clips: list[tuple[float, float, Path]], dst: Path) -> None:
-    """Mux `video` with `background` (quieter) plus each (start, slot_end, wav) voice clip placed at its start.
-    A clip longer than its slot is sped up (max 1.6x) so it ends near the next sentence.
-    shortcut: the original voice is ducked, not removed; true voice separation needs a separate model."""
-    inputs: list[str] = ["-i", str(video), "-i", str(background)]
-    filters = ["[1:a]volume=0.18[bg]"]
-    labels = ["[bg]"]
-    for i, (start, slot_end, clip) in enumerate(clips):
-        inputs += ["-i", str(clip)]
-        slot = max(slot_end - start, 0.5)
-        tempo = min(max(wav_seconds(clip) / slot, 1.0), 1.6)
-        delay = int(start * 1000)
-        filters.append(f"[{i + 2}:a]atempo={tempo:.3f},adelay={delay}:all=1[v{i}]")
-        labels.append(f"[v{i}]")
-    filters.append(f"{''.join(labels)}amix=inputs={len(labels)}:duration=first:normalize=0[aout]")
+async def retime(src: Path, dst: Path, tempo: float, rate: int = 24_000) -> None:
+    """Speed a speech clip up or down without changing its pitch (atempo), as mono WAV at `rate`."""
+    await _run("ffmpeg", "-y", "-v", "error", "-i", str(src), "-filter:a", f"atempo={tempo:.4f}",
+               "-ac", "1", "-ar", str(rate), "-c:a", "pcm_s16le", str(dst))  # fmt: skip
+
+
+def place_clips(clips: list[tuple[float, Path]], total_sec: float, dst: Path, rate: int = 24_000) -> None:
+    """One mono WAV of `total_sec` with each (start, wav) clip mixed in at its start (blocking; numpy).
+    Every clip must already be mono 16-bit at `rate` (see retime)."""
+    track = np.zeros(int(total_sec * rate) + rate, dtype=np.int32)
+    for start, clip in clips:
+        with wave.open(str(clip)) as w:
+            samples = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.int32)
+        at = int(start * rate)
+        if at + len(samples) > len(track):
+            track = np.pad(track, (0, at + len(samples) - len(track)))
+        track[at : at + len(samples)] += samples
+    with wave.open(str(dst), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(np.clip(track, -32768, 32767).astype(np.int16).tobytes())
+
+
+async def dub_track(voice: Path, video: Path, dst: Path, bed_volume: float = 0.15) -> None:
+    """The dubbed audio: the translated voice over the original sound turned down (machine noise keeps the
+    context). shortcut: the usta's own voice is ducked, not removed; separating it needs a model (KAN-51, Demucs)."""
     await _run(
-        "ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex", ";".join(filters),
-        "-map", "0:v", "-map", "[aout]", "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
-        "-movflags", "+faststart", str(dst),
+        "ffmpeg", "-y", "-v", "error", "-i", str(voice), "-i", str(video),
+        "-filter_complex",
+        f"[1:a]aresample=24000,volume={bed_volume}[bed];[0:a][bed]amix=inputs=2:duration=longest:normalize=0[a]",
+        "-map", "[a]", "-c:a", "aac", "-b:a", "128k", str(dst),
     )  # fmt: skip
 
 
-def vtt(segments: list[tuple[float, float, str]]) -> str:
-    def ts(sec: float) -> str:
-        ms = round(sec * 1000)
-        return f"{ms // 3_600_000:02d}:{ms // 60_000 % 60:02d}:{ms // 1000 % 60:02d}.{ms % 1000:03d}"
+def _iso639_2(code: str) -> str:
+    """MP4 language tags are 3 letters."""
+    return {"tr": "tur", "en": "eng", "ar": "ara"}.get(code, code)
 
-    cues = [f"{ts(s)} --> {ts(max(e, s + 0.5))}\n{text.strip()}" for s, e, text in segments if text.strip()]
-    return "WEBVTT\n\n" + "\n\n".join(cues) + "\n"
+
+async def mux_dub(video: Path, dub: Path, dst: Path, language: str, original_language: str) -> None:
+    """MP4 with the dubbed track first (default; what browsers play) and the original audio as a second track."""
+    await _run(
+        "ffmpeg", "-y", "-v", "error", "-i", str(video), "-i", str(dub),
+        "-map", "0:v", "-map", "1:a", "-map", "0:a?", "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
+        "-metadata:s:a:0", f"language={_iso639_2(language)}",
+        "-metadata:s:a:1", f"language={_iso639_2(original_language)}",
+        "-disposition:a:0", "default", "-disposition:a:1", "0", "-movflags", "+faststart", str(dst),
+    )  # fmt: skip

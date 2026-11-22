@@ -29,6 +29,8 @@ class Document(Base):
     title: Mapped[str] = mapped_column(String(200))
     type: Mapped[DocumentType] = mapped_column(Enum(DocumentType, length=30))
     file: Mapped[str] = mapped_column(String(255))  # path under uploads/
+    file_name: Mapped[str] = mapped_column(String(255), default="")  # as uploaded, shown in answer sources
+    language: Mapped[str] = mapped_column(String(8), default="tr")  # uploader's language: OCR/search hint
     mime_type: Mapped[str] = mapped_column(String(100))
     page_count: Mapped[int] = mapped_column(Integer, default=0)
     summary_status: Mapped[SummaryStatus] = mapped_column(

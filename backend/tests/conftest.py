@@ -67,10 +67,10 @@ def ai() -> FakeAI:
 
 @pytest.fixture
 async def app(ai: FakeAI) -> AsyncIterator[FastAPI]:
-    app = create_app(database_url=get_settings().test_database_url, ai=ai, resume_jobs=False)
+    app = create_app(database_url=get_settings().test_database_url, ai=ai.services, background=False)
     async with app.router.lifespan_context(app):
         yield app
-        await ctx_of(app).jobs.drain()
+        await ctx_of(app).jobs.drain(ctx_of(app))
 
 
 def ctx_of(app: FastAPI) -> AppContext:

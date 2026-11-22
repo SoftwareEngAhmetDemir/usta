@@ -77,10 +77,10 @@ function ask(page: MachinePage, question: string): unknown {
   const saved = page.questions.find((x) => x.question.text.toLocaleLowerCase('tr') === q && x.answer);
   if (saved?.answer) {
     const src: AnswerSource = { kind: 'usta_answer', question_id: saved.id, usta_name: saved.usta.name, answered_at: saved.answered_at };
-    return { status: 'answered', answer: saved.answer, sources: [src] };
+    return { status: 'answered', answer: saved.answer, sources: [src], confidence: 0.95, ask_id: Date.now() };
   }
   if (page.machine.id === 1 && /elektrot|meme|basın|bar|hava/.test(q)) return fx.askAnswered;
-  return { status: 'not_found', ustas: page.ustas };
+  return { status: 'not_found', ustas: page.ustas, ask_id: Date.now() };
 }
 
 export function handle(db: MockDb, req: MockRequest): MockResponse {
@@ -142,6 +142,7 @@ export function handle(db: MockDb, req: MockRequest): MockResponse {
       const page = db.pages[id];
       return page ? ok({ ...page, actions: ACTIONS[me.role] }) : fail(404, 'Makine bulunamadı.');
     }
+    case 'POST /ask/:id/feedback': return ok(null);
     case 'POST /machines/:id/ask': {
       const page = db.pages[id];
       return page ? ok(ask(page, field(body, 'question'))) : fail(404, 'Makine bulunamadı.');

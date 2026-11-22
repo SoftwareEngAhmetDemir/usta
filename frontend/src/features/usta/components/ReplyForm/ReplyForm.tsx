@@ -36,7 +36,7 @@ export function ReplyForm({ sending, onSend }: { sending: boolean; onSend: (repl
       )}
       {kind === 'file' && (
         <Field label="Dosya (fotoğraf veya belge)" htmlFor="reply-file">
-          <input id="reply-file" type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          <input id="reply-file" type="file" accept="image/*,application/pdf,.docx,.xlsx,.csv,.txt" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         </Field>
       )}
       <Field label={kind === 'text' ? 'Cevabın' : 'Not (isteğe bağlı)'} htmlFor="reply-text" error={error}>

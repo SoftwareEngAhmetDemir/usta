@@ -1,27 +1,29 @@
-"""Machine documents (KAN-33, 43, 45): text per page for "Makineye sor", and an AI summary in each language."""
+"""Machine documents (KAN-33, 43, 44, 45, 59): structured text and search chunks for "Makineye sor", and a
+summary (LLM) in each language (machine-translated)."""
 
 import asyncio
 import logging
-from pathlib import Path
+import shutil
 
 from pydantic import BaseModel
-from pypdf import PdfReader
-from pypdf.errors import PdfReadError
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.protocol import AIUnavailableError
+from app.ai.interfaces import AIUnavailableError
 from app.context import AppContext
 from app.core import storage
 from app.core.languages import DEFAULT_LANGUAGE, LANGUAGES, lang_dir, lang_name, localized
 from app.core.schemas import Dir, LocalizedText
+from app.documents.extract import Extracted, extract
 from app.documents.models import Document, DocumentPage, DocumentSummaryText, DocumentType, SummaryStatus
-from app.search.service import page_chunks, replace_chunks
+from app.jobs.queue import Payload, Progress
+from app.search.chunking import chunk_document, with_heading
+from app.search.service import ChunkIn, Owner, delete_chunks, embed_and_store
 from app.translations.service import translate
 
 log = logging.getLogger(__name__)
 
-ALLOWED_TYPES = {"application/pdf", "image/jpeg", "image/png", "image/webp"}
+JOB_KIND = "document_ingest"
 
 
 class DocumentSummaryOut(BaseModel):
@@ -53,43 +55,36 @@ class DocumentDetail(BaseModel):
     summary: SummaryOut | None
 
 
-def _pdf_pages(path: Path) -> list[str]:
-    return [page.extract_text() or "" for page in PdfReader(path).pages]
-
-
-async def _pages(ctx: AppContext, doc: Document) -> list[str]:
-    path = storage.abs_path(doc.file)
-    if doc.mime_type == "application/pdf":
-        # shortcut: scanned PDFs without a text layer give empty pages; per-page OCR needs rendering pages to images.
-        return await asyncio.to_thread(_pdf_pages, path)
-    try:
-        return [await ctx.ai.read_image(path, doc.mime_type)]
-    except AIUnavailableError:
-        return [""]
-
-
 async def process(ctx: AppContext, document_id: int) -> None:
-    """Job: extract page texts, index them for search, write the summary in every language."""
+    """Job: extract structured text (OCR for scans/photos), index it for search, write the summary in every language."""
     async with ctx.sessionmaker() as db:
         doc = await db.get(Document, document_id)
         if doc is None:
             return
         try:
-            pages = await _pages(ctx, doc)
-        except (PdfReadError, OSError, ValueError) as e:
+            found = await asyncio.to_thread(
+                extract, storage.abs_path(doc.file), doc.mime_type, ctx.ai.ocr_languages, ctx.ai.tessdata_dir
+            )
+        except Exception as e:  # any parser error on an uploaded file: an empty document, not a crashed job
             log.warning("document %s unreadable: %s", document_id, e)
-            pages = []
+            found = Extracted([], 0)
+        pages = found.page_texts()
         await db.execute(delete(DocumentPage).where(DocumentPage.document_id == doc.id))
         db.add_all(DocumentPage(document_id=doc.id, page=i, text=t) for i, t in enumerate(pages, start=1))
-        doc.page_count = len(pages)
+        doc.page_count = found.page_count
         await db.commit()
+        chunks = [
+            ChunkIn(text=with_heading(c), language=doc.language, title=doc.file_name or doc.title, page=c.page,
+                    section_heading=c.heading or None)
+            for c in chunk_document(found.blocks)
+        ]  # fmt: skip
+        await embed_and_store(db, ctx.ai, doc.machine_id, Owner(document_id=doc.id), chunks)
         if not any(p.strip() for p in pages):
             doc.summary_status = SummaryStatus.none
             await db.commit()
             return
         try:
-            await replace_chunks(db, ctx.ai, doc.machine_id, "document", page_chunks(pages), document_id=doc.id)
-            points = await ctx.ai.summarize(pages, DEFAULT_LANGUAGE)
+            points = await ctx.ai.llm.summarize(pages, DEFAULT_LANGUAGE)
             await _store_summaries(db, ctx, doc.id, points)
             doc.summary_status = SummaryStatus.ready
             await db.commit()
@@ -102,10 +97,29 @@ async def process(ctx: AppContext, document_id: int) -> None:
             await db.commit()
 
 
+async def remove_document(ctx: AppContext, db: AsyncSession, doc: Document) -> None:
+    """Rows cascade (pages, summaries, chunks); vectors and the file folder are removed here."""
+    await delete_chunks(db, ctx.ai, Owner(document_id=doc.id))
+    folder = storage.abs_path(f"docs/{doc.id}")
+    await db.delete(doc)
+    await db.commit()
+    await asyncio.to_thread(shutil.rmtree, folder, True)
+
+
+async def job(ctx: AppContext, payload: Payload, progress: Progress) -> None:
+    """Job handler (kind "document_ingest"): {"document_id": int}."""
+    await progress(10, "Doküman okunuyor")
+    await process(ctx, int(payload["document_id"]))
+
+
 async def _store_summaries(db: AsyncSession, ctx: AppContext, doc_id: int, points: list[str]) -> None:
     await db.execute(delete(DocumentSummaryText).where(DocumentSummaryText.document_id == doc_id))
     for lang in LANGUAGES:
-        translated = await translate(db, ctx.ai, points, DEFAULT_LANGUAGE, lang)
+        try:
+            translated = await translate(db, ctx.ai.translator, points, DEFAULT_LANGUAGE, lang)
+        except AIUnavailableError as e:  # that language falls back to the Turkish summary
+            log.warning("summary of document %s not translated to %s: %s", doc_id, lang, e)
+            continue
         db.add(DocumentSummaryText(document_id=doc_id, lang=lang, points=translated))
     await db.commit()
 

@@ -15,12 +15,21 @@ if config.config_file_name is not None and config.attributes.get("configure_logg
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
+
+
+def include_object(obj: object, name: str | None, type_: str, reflected: bool, compare_to: object | None) -> bool:
+    """Autogenerate never drops tables our models don't define (e.g. the hand-made `users_old` in the dev DB)."""
+    return not (type_ == "table" and reflected and compare_to is None)
+
+
 # Tests pass the usta_test URL via config.attributes["url"]; the CLI uses DATABASE_URL from backend/.env.
 url: str = config.attributes.get("url") or get_settings().database_url
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
+    context.configure(
+        connection=connection, target_metadata=target_metadata, compare_type=True, include_object=include_object
+    )
     with context.begin_transaction():
         context.run_migrations()
 

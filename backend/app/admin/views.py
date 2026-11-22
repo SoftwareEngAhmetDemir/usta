@@ -19,12 +19,14 @@ from app.auth.deps import SESSION_COOKIE
 from app.auth.models import Role, User
 from app.auth.passwords import hash_password
 from app.auth.schemas import normalize_login, valid_password
+from app.context import AppContext
 from app.core import storage
 from app.documents.models import Document
 from app.machines.models import ExternalVideo, Machine
 from app.machines.service import embed_url
 from app.maintenance.models import MaintenanceRecord
 from app.questions.models import Question
+from app.search.service import Owner, delete_chunks
 from app.videos.models import Video
 from app.videos.pipeline import video_dir
 
@@ -142,6 +144,17 @@ class ExternalVideoAdmin(ModelView, model=ExternalVideo):
         data["embed_url"] = embed_url(url)
 
 
+_ctx: list[AppContext] = []  # set by mount(): the views need the vector store
+
+
+async def _drop_vectors(owner: Owner) -> None:
+    """Before SQLAdmin deletes a source: its chunk rows cascade, but their vectors live outside MySQL."""
+    if _ctx:
+        async with _ctx[0].sessionmaker() as db:
+            await delete_chunks(db, _ctx[0].ai, owner)
+            await db.commit()
+
+
 def _remove_folder(rel: str) -> None:
     shutil.rmtree(storage.abs_path(rel), ignore_errors=True)
 
@@ -155,6 +168,9 @@ class VideoAdmin(ModelView, model=Video):
         "title": "Başlık", "machine_id": "Makine no", "status": "Durum", "language": "Dil", "created_at": "Tarih",
     }  # fmt: skip
 
+    async def on_model_delete(self, model: Video, request: Request) -> None:
+        await _drop_vectors(Owner(video_id=model.id))
+
     async def after_model_delete(self, model: Video, request: Request) -> None:
         _remove_folder(video_dir(model.id))
 
@@ -165,6 +181,9 @@ class DocumentAdmin(ModelView, model=Document):
     column_list = [Document.id, Document.title, Document.type, Document.machine_id, Document.summary_status]
     form_columns = [Document.title, Document.type]
     column_labels = {"title": "Başlık", "type": "Tür", "machine_id": "Makine no", "summary_status": "Özet"}
+
+    async def on_model_delete(self, model: Document, request: Request) -> None:
+        await _drop_vectors(Owner(document_id=model.id))
 
     async def after_model_delete(self, model: Document, request: Request) -> None:
         _remove_folder(f"docs/{model.id}")
@@ -189,7 +208,9 @@ class MaintenanceAdmin(ModelView, model=MaintenanceRecord):
     }  # fmt: skip
 
 
-def mount(app: Starlette, sessionmaker: async_sessionmaker[AsyncSession], secret_key: str) -> None:
+def mount(app: Starlette, ctx: AppContext, secret_key: str) -> None:
+    _ctx[:] = [ctx]
+    sessionmaker = ctx.sessionmaker
     admin = Admin(
         app,
         session_maker=sessionmaker,

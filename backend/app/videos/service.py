@@ -79,6 +79,7 @@ class VideoProcessing(BaseModel):
     id: int
     status: str
     steps: list[PipelineStepOut]
+    job_id: int | None = None  # set on upload: follow it at GET /jobs/{id} or WS /ws/jobs/{id}
 
 
 StepsByPipeline = dict[str, list[VideoStep]]
