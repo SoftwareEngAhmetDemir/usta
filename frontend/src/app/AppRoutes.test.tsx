@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { alertList, languages, machinePage, me } from '../test/fixtures';
@@ -20,6 +20,18 @@ describe('AppRoutes', () => {
     expect(await screen.findByRole('heading', { name: 'Plazma Kesim Makinesi' })).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: 'Bildirimler, 1 okunmamış' })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Ana menü' })).toHaveTextContent('Sorularım');
+  });
+
+  it('switches the site language from the header, saves it and reloads the page in it (KAN-46)', async () => {
+    const { calls } = mockApi({ 'GET /auth/me': me('worker'), 'GET /alerts': alertList, 'GET /languages': languages, 'GET /machines/1': machinePage, 'PATCH /me/language': me('worker', 'ar') });
+    app('/m/1');
+    await screen.findByRole('heading', { name: 'Plazma Kesim Makinesi' });
+    await userEvent.click(await screen.findByRole('button', { name: 'Site dili' }));
+    await userEvent.type(screen.getByRole('combobox', { name: 'Site dili: ara' }), 'arap');
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Site dili' })).toHaveTextContent('AR'));
+    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ language: 'ar' });
+    await waitFor(() => expect(calls.filter((c) => c.path === '/machines/1')).toHaveLength(2));
   });
 
   it('sends anonymous users to login', async () => {

@@ -46,12 +46,15 @@ test('opening a page calls each API once, not twice', async ({ page }) => {
   expect(count('GET /alerts')).toBe(1);
 });
 
-test('worker switches content language to Arabic (KAN-46)', async ({ page }) => {
+test('worker switches the site language to Arabic from the header, searching by name (KAN-46)', async ({ page }) => {
   const api = await mockBackend(page, { role: 'worker' });
   await page.goto('/m/1');
-  const bar = page.getByRole('group', { name: 'İçerik dili' });
-  await bar.getByRole('button', { name: 'العربية' }).click();
-  await expect(bar.getByRole('button', { name: 'العربية' })).toHaveAttribute('aria-pressed', 'true');
+  const menu = page.getByRole('button', { name: 'Site dili' });
+  await menu.click();
+  await page.getByRole('combobox', { name: 'Site dili: ara' }).fill('arap');
+  await expect(page.getByRole('option')).toHaveCount(1);
+  await page.getByRole('option', { name: /العربية/ }).click();
+  await expect(menu).toHaveText(/AR/);
   expect(api.calls.find((c) => c.key === 'PATCH /me/language')?.body).toEqual({ language: 'ar' });
 });
 

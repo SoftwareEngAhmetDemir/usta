@@ -23,7 +23,7 @@ from app.questions.models import Question
 from app.questions.service import person
 from app.search.models import Chunk
 from app.search.service import Candidate, hybrid_search, rerank
-from app.translations.service import translate
+from app.translations.service import AUTO_DETECT, translate
 from app.videos.models import Video
 from app.videos.timeline import format_timestamp
 
@@ -118,17 +118,16 @@ async def _describe(db: AsyncSession, chunk: Chunk) -> tuple[str, AnswerSource |
     return chunk.text, None
 
 
-async def _translated(ctx: AppContext, db: AsyncSession, machine_id: int, question: str, language: str) -> list[str]:
+async def _translated(ctx: AppContext, db: AsyncSession, machine_id: int, question: str) -> list[str]:
     """The question machine-translated (MT, cached; not an LLM) into each language this machine's knowledge is in,
-    so an Arabic question finds Turkish videos by their own words too ("الفوهة" → "nozul"). Retrieval only: the
+    so an Arabic question finds Turkish videos by their own words too ("الفوهة" → "nozul"). The question's language
+    is detected ("auto"), not taken from the profile: a Turkish-profile worker may type English. Retrieval only: the
     LLM still gets the worker's own question. Skipped when translation is unavailable."""
-    languages = await db.scalars(
-        select(Chunk.language).where(Chunk.machine_id == machine_id, Chunk.language != language).distinct()
-    )
+    languages = await db.scalars(select(Chunk.language).where(Chunk.machine_id == machine_id).distinct())
     out: list[str] = []
     for target in languages:
         try:
-            out += await translate(db, ctx.ai.translator, [question], language, target)
+            out += await translate(db, ctx.ai.translator, [question], AUTO_DETECT, target)
         except AIUnavailableError as e:
             log.info("question not translated to %s for search: %s", target, e)
     return [q for q in dict.fromkeys(out) if q != question]
@@ -151,7 +150,7 @@ async def answer_question(
     await db.flush()
     not_found = NotFound(ustas=[person(u) for u in machine.ustas if u.id != asker.id], ask_id=entry.id)
     try:
-        queries = [question, *await _translated(ctx, db, machine.id, question, language)]
+        queries = [question, *await _translated(ctx, db, machine.id, question)]
         candidates = await hybrid_search(db, ctx.ai, machine.id, queries, settings.ask_candidates)
         top = await rerank(ctx.ai, queries, candidates, settings.ask_top_k) if candidates else []
     except Exception:  # a local model failed to load/run: say "not found", never guess

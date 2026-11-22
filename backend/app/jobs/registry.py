@@ -5,6 +5,8 @@ from app.documents import service as documents_service
 from app.jobs.queue import JobQueue
 from app.questions import service as questions_service
 from app.search.jobs import REEMBED_JOB, reembed_job
+from app.translations import backfill
+from app.translations.service import BACKFILL_JOB
 from app.videos import pipeline
 
 
@@ -14,3 +16,4 @@ def register_jobs(jobs: JobQueue) -> None:
     jobs.register("question_translate", questions_service.translate_question)
     jobs.register("answer_index", questions_service.after_answer)
     jobs.register(REEMBED_JOB, reembed_job)
+    jobs.register(BACKFILL_JOB, backfill.backfill)

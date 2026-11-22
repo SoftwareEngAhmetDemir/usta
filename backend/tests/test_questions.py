@@ -72,6 +72,35 @@ async def test_worker_asks_usta_who_answers_and_worker_sees_it(
     assert qa["usta"]["name"] == "Mehmet Usta"
 
 
+async def test_usta_reads_a_question_in_any_language_and_a_new_language_is_filled_in(
+    client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine, ctx: AppContext, ai: FakeAI
+) -> None:
+    usta = await make_user(Role.usta)
+    machine = await make_machine(ustas=[usta])
+    worker, usta_c = await client_as(await make_user()), await client_as(usta)  # Turkish profile, English question
+    sent = await worker.post(f"/api/machines/{machine.id}/questions", json={"question": "what is his project about?"})
+    qid = sent.json()["id"]
+    await ctx.jobs.drain(ctx)
+
+    german = (await usta_c.get(f"/api/questions/{qid}", params={"lang": "de"})).json()
+    assert german["question"] == {"text": "[de] what is his project about?", "lang": "de", "dir": "ltr"}
+    assert german["original_question"]["text"] == "what is his project about?"
+    persian = (await usta_c.get(f"/api/questions/{qid}", params={"lang": "fa"})).json()
+    assert persian["question"]["dir"] == "rtl"
+    assert (await usta_c.get(f"/api/questions/{qid}", params={"lang": "xx"})).status_code == 422
+    ai.translator.fail = True
+    down = await usta_c.get(f"/api/questions/{qid}", params={"lang": "ja"})
+    assert down.status_code == 503 and down.json() == {"detail": "Çeviri şu an yapılamıyor, tekrar deneyin."}
+    ai.translator.fail = False
+
+    await usta_c.post(f"/api/questions/{qid}/answer", data={"text": "Bir web uygulaması."})
+    await ctx.jobs.drain(ctx)
+    assert (await worker.patch("/api/me/language", json={"language": "de"})).status_code == 200
+    await ctx.jobs.drain(ctx)  # language_backfill: earlier questions and answers into German
+    mine = (await worker.get("/api/me/questions")).json()
+    assert mine[0]["answer"] == {"text": "[de] Bir web uygulaması.", "lang": "de", "dir": "ltr"}
+
+
 async def test_answer_needs_content_and_can_carry_a_file(
     client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine
 ) -> None:
@@ -335,3 +364,21 @@ async def test_a_question_in_another_language_also_searches_its_machine_translat
     res = (await arabic.post(f"/api/machines/{machine.id}/ask", json=question)).json()
     assert res["status"] == "answered" and res["answer"]["lang"] == "ar"
     assert ai.llm.sources and "Enerjiyi kesip elektrotu sökün." in ai.llm.sources[0]
+
+
+async def test_a_question_typed_in_another_language_than_the_profile_is_still_translated_for_search(
+    client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine, ctx: AppContext, ai: FakeAI
+) -> None:
+    """A Turkish-profile worker types English: the translator detects it, the Turkish version finds the answer."""
+    usta = await make_user(Role.usta)
+    machine = await make_machine(ustas=[usta])
+    await _answered_question(client_as, make_user, machine, usta)
+    await ctx.jobs.drain(ctx)
+    turkish_profile = await client_as(await make_user(language="tr"))
+    ai.translator.table["How do I change the electrode?"] = "Elektrot nasıl değiştirilir?"
+    res = (
+        await turkish_profile.post(
+            f"/api/machines/{machine.id}/ask", json={"question": "How do I change the electrode?"}
+        )
+    ).json()
+    assert res["status"] == "answered" and res["answer"]["lang"] == "tr"

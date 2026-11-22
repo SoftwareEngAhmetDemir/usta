@@ -4,10 +4,12 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
+from app.ai.interfaces import AIUnavailableError
 from app.alerts.service import notify
 from app.auth.deps import CurrentUser
 from app.auth.models import Role, User
 from app.core import storage
+from app.core.languages import LANGUAGES
 from app.core.schemas import utcnow
 from app.deps import CtxDep, SessionDep, not_found
 from app.machines.models import Machine
@@ -77,9 +79,19 @@ async def _open_question(db: SessionDep, question_id: int, user: User) -> Questi
 
 
 @router.get("/questions/{question_id}", response_model=InboxQuestion)
-async def get_question(question_id: int, user: CurrentUser, db: SessionDep) -> InboxQuestion:
+async def get_question(
+    question_id: int, user: CurrentUser, db: SessionDep, ctx: CtxDep, lang: str | None = None
+) -> InboxQuestion:
+    """The question in the usta's language, or in `lang` when they pick another one (translated now, then stored)."""
     q = await _open_question(db, question_id, user)
-    return service.inbox_question(q, await service.localizer(db, [q], user.language))
+    if lang is None or lang == user.language:
+        return service.inbox_question(q, await service.localizer(db, [q], user.language))
+    if lang not in LANGUAGES:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Bu dil desteklenmiyor.")
+    try:
+        return await service.inbox_question_in(db, ctx.ai.translator, q, lang)
+    except AIUnavailableError as e:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Çeviri şu an yapılamıyor, tekrar deneyin.") from e
 
 
 @router.post("/questions/{question_id}/answer", response_model=AnswerSent)

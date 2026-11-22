@@ -87,7 +87,7 @@ class VectorStore(Protocol):
 
 class Translator(Protocol):
     async def translate(self, texts: list[str], source: str, target: str) -> list[str]:
-        """Machine translation (not an LLM). Same length and order as `texts`."""
+        """Machine translation (not an LLM). Same length and order as `texts`. source "auto" = detect it."""
         ...
 
 

@@ -46,6 +46,16 @@ def _audio_tracks(path: Path) -> list[str]:
     return [s.get("tags", {}).get("language", "") for s in json.loads(out)["streams"]]
 
 
+def _max_volume_db(path: Path, track: int) -> float:
+    """Loudest sample of one audio track, in dB (ffmpeg volumedetect; -91 = digital silence)."""
+    err = subprocess.run(  # noqa: S603
+        ["ffmpeg", "-v", "info", "-i", str(path), "-map", f"0:a:{track}", "-af", "volumedetect",  # noqa: S607
+         "-f", "null", "-"],
+        capture_output=True, text=True, check=True,
+    ).stderr  # fmt: skip
+    return float(err.split("max_volume:")[1].split("dB")[0])
+
+
 async def test_upload_runs_every_step_and_the_video_becomes_searchable(
     client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine, ctx: AppContext, sample_video: Path,
     db: AsyncSession, ai: FakeAI,
@@ -150,7 +160,9 @@ async def test_language_prepared_on_demand_once_then_dubbed_with_both_tracks(
     ar = next(t for t in detail["tracks"] if t["language"] == "ar")
     assert ar["subtitles"] == "ready" and ar["audio"] == "ready" and ar["dir"] == "rtl"
     assert ar["stream_url"] == f"/uploads/videos/{vid}/ar.mp4"
-    assert _audio_tracks(storage.abs_path(f"videos/{vid}/ar.mp4")) == ["ara", "tur"]  # dub first, original kept
+    dubbed = storage.abs_path(f"videos/{vid}/ar.mp4")
+    assert _audio_tracks(dubbed) == ["ara", "tur"]  # dub first, original kept
+    assert _max_volume_db(dubbed, 0) < -60 < _max_volume_db(dubbed, 1)  # no original sound under the (silent) dub
     assert storage.abs_path(f"videos/{vid}/ar.srt").read_text(encoding="utf-8").count("[ar] ") == 2
     dub = await db.scalar(select(DubbedVersion).where(DubbedVersion.video_id == vid))
     assert dub is not None and dub.status == "ready" and dub.subtitle_srt == f"videos/{vid}/ar.srt"
@@ -158,6 +170,30 @@ async def test_language_prepared_on_demand_once_then_dubbed_with_both_tracks(
     page = (await arabic.get(f"/api/machines/{machine.id}")).json()
     assert page["videos"][0]["availability"] == "dubbed"
     assert "artık العربية hazır" in (await arabic.get("/api/alerts")).json()["items"][0]["text"]
+
+
+async def test_a_language_without_a_voice_gets_subtitles_only(
+    client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine, ctx: AppContext, sample_video: Path,
+    ai: FakeAI,
+) -> None:  # fmt: skip
+    """Google's free speech endpoint can't speak Persian: translated subtitles, no dubbed audio."""
+    usta_user = await make_user(Role.usta)
+    machine = await make_machine(ustas=[usta_user])
+    vid = (await _upload(await client_as(usta_user), machine.id, sample_video)).id
+    await ctx.jobs.drain(ctx)
+    persian = await client_as(await make_user(language="fa"))
+    prep = (await persian.post(f"/api/videos/{vid}/languages/fa")).json()
+    assert [s["key"] for s in prep["steps"]] == ["translate", "subtitles"]
+    await ctx.jobs.drain(ctx)
+
+    detail = (await persian.get(f"/api/videos/{vid}")).json()
+    fa = next(t for t in detail["tracks"] if t["language"] == "fa")
+    assert fa["subtitles"] == "ready" and fa["audio"] == "unavailable" and fa["stream_url"] is None
+    assert fa["dir"] == "rtl" and detail["preparation"] is None and ai.tts.calls == 0
+    assert fa["language_tr_name"] == "Farsça"
+    assert detail["default_subtitle_language"] == "fa" and detail["default_audio_language"] == "tr"
+    page = (await persian.get(f"/api/machines/{machine.id}")).json()
+    assert page["videos"][0]["availability"] == "subtitles"
 
 
 async def test_failed_step_shows_and_retry_resumes_there(

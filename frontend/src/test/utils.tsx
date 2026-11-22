@@ -1,4 +1,5 @@
-import { render, type RenderResult } from '@testing-library/react';
+import { render, screen, type RenderResult } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ReactElement } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { OtherPage } from './OtherPage';
@@ -60,4 +61,10 @@ export function stubQrCamera(qr: string | null, camera: () => Promise<MediaStrea
   if (qr !== null) vi.stubGlobal('BarcodeDetector', class { detect = async () => [{ rawValue: qr }]; });
   vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
   vi.spyOn(HTMLVideoElement.prototype, 'videoWidth', 'get').mockReturnValue(640);
+}
+
+/** Open the SearchSelect labelled `label` and click the option named `option`. */
+export async function chooseFrom(label: string, option: string | RegExp) {
+  await userEvent.click(screen.getByRole('button', { name: label }));
+  await userEvent.click(screen.getByRole('option', { name: option }));
 }

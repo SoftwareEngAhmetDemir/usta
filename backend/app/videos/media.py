@@ -8,6 +8,8 @@ from pathlib import Path
 import numpy as np
 from numpy.typing import NDArray
 
+from app.core.languages import ISO639_2
+
 _LIMIT = asyncio.Semaphore(2)
 
 
@@ -123,20 +125,11 @@ def place_clips(clips: list[tuple[float, Path]], total_sec: float, dst: Path, ra
         w.writeframes(np.clip(track, -32768, 32767).astype(np.int16).tobytes())
 
 
-async def dub_track(voice: Path, video: Path, dst: Path, bed_volume: float = 0.15) -> None:
-    """The dubbed audio: the translated voice over the original sound turned down (machine noise keeps the
-    context). shortcut: the usta's own voice is ducked, not removed; separating it needs a model (KAN-51, Demucs)."""
-    await _run(
-        "ffmpeg", "-y", "-v", "error", "-i", str(voice), "-i", str(video),
-        "-filter_complex",
-        f"[1:a]aresample=24000,volume={bed_volume}[bed];[0:a][bed]amix=inputs=2:duration=longest:normalize=0[a]",
-        "-map", "[a]", "-c:a", "aac", "-b:a", "128k", str(dst),
-    )  # fmt: skip
-
-
-def _iso639_2(code: str) -> str:
-    """MP4 language tags are 3 letters."""
-    return {"tr": "tur", "en": "eng", "ar": "ara"}.get(code, code)
+async def dub_track(voice: Path, dst: Path) -> None:
+    """The dubbed audio: the translated voice only. The original sound is left out entirely (user's decision
+    2026-11-22: the usta's own voice must not be heard under the dub); machine noise would need the voice separated
+    from it first (KAN-51, Demucs)."""
+    await _run("ffmpeg", "-y", "-v", "error", "-i", str(voice), "-c:a", "aac", "-b:a", "128k", str(dst))
 
 
 async def mux_dub(video: Path, dub: Path, dst: Path, language: str, original_language: str) -> None:
@@ -144,7 +137,7 @@ async def mux_dub(video: Path, dub: Path, dst: Path, language: str, original_lan
     await _run(
         "ffmpeg", "-y", "-v", "error", "-i", str(video), "-i", str(dub),
         "-map", "0:v", "-map", "1:a", "-map", "0:a?", "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
-        "-metadata:s:a:0", f"language={_iso639_2(language)}",
-        "-metadata:s:a:1", f"language={_iso639_2(original_language)}",
+        "-metadata:s:a:0", f"language={ISO639_2.get(language, 'und')}",
+        "-metadata:s:a:1", f"language={ISO639_2.get(original_language, 'und')}",
         "-disposition:a:0", "default", "-disposition:a:1", "0", "-movflags", "+faststart", str(dst),
     )  # fmt: skip

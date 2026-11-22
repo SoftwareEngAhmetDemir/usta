@@ -110,6 +110,7 @@ async def test_pdf_keeps_pages_headings_and_tables_and_is_searchable(
 ) -> None:  # fmt: skip
     machine = await make_machine()
     patron = await client_as(await make_user(Role.patron))
+    english = await client_as(await make_user(language="en"))  # summaries are translated into languages in use
     doc_id = await _upload(patron, machine.id, "kilavuz.pdf", two_page_pdf(), "application/pdf", "Kullanım kılavuzu")
     first = (await patron.get(f"/api/documents/{doc_id}")).json()
     assert first["summary_status"] == "preparing"
@@ -123,7 +124,6 @@ async def test_pdf_keeps_pages_headings_and_tables_and_is_searchable(
     assert table.title == "kilavuz.pdf" and table.language == "tr"
     assert "Hava basinci 6 bar" not in table.text or "| Parca no | Aciklama |" in table.text
 
-    english = await client_as(await make_user(language="en"))
     detail = (await english.get(f"/api/documents/{doc_id}")).json()
     assert detail["page_count"] == 2 and detail["summary_status"] == "ready"
     assert detail["summary"]["lang"] == "en" and detail["summary"]["points"][0].startswith("[en] Özet: Kurulum")
@@ -238,3 +238,19 @@ async def test_delete_document_removes_chunks_vectors_and_file(
     assert await db.scalar(select(func.count()).where(Chunk.document_id == doc_id)) == 0
     assert ai.vectors.query(ai.embedder.embed_query("elektrot"), machine.id, 10) == []
     assert not storage.abs_path(f"docs/{doc_id}").exists()
+
+
+async def test_summary_is_translated_when_someone_chooses_a_new_language(
+    client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine, ctx: AppContext
+) -> None:
+    machine = await make_machine()
+    patron = await client_as(await make_user(Role.patron))
+    doc_id = await _upload(patron, machine.id, "not.txt", "Kurulum\nHava basıncı 6 bar olmalı.".encode(), "text/plain")
+    await ctx.jobs.drain(ctx)
+    worker = await client_as(await make_user())
+    assert (await worker.get(f"/api/documents/{doc_id}")).json()["summary"]["lang"] == "tr"
+
+    await worker.patch("/api/me/language", json={"language": "de"})  # nobody used German when it was summarized
+    await ctx.jobs.drain(ctx)
+    summary = (await worker.get(f"/api/documents/{doc_id}")).json()["summary"]
+    assert summary["lang"] == "de" and summary["points"][0].startswith("[de] ")

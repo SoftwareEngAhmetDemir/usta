@@ -1,9 +1,10 @@
 import re
 from typing import Annotated
 
-from pydantic import AfterValidator, BaseModel, BeforeValidator, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, BeforeValidator, ConfigDict, Field, model_validator
 
 from app.auth.models import Role
+from app.core.languages import lang_name
 
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _PHONE = re.compile(r"^\+?\d{7,15}$")
@@ -68,5 +69,11 @@ class Me(BaseModel):
     name: str
     role: Role
     language: str
+    language_name: str = ""  # native name of `language`, filled in below
     authorized: bool
     authorization_note: str | None
+
+    @model_validator(mode="after")
+    def _name_language(self) -> "Me":
+        self.language_name = lang_name(self.language)
+        return self

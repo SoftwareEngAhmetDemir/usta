@@ -7,6 +7,7 @@ export type LanguageCode = string; // e.g. 'tr', 'en', 'ar'; the backend owns th
 export interface Language {
   code: LanguageCode;
   name: string; // native name: "Türkçe", "English", "العربية"
+  tr_name: string; // Turkish name: "Almanca" (language menus search both)
   dir: 'ltr' | 'rtl';
 }
 
@@ -14,7 +15,8 @@ export interface Me {
   id: number;
   name: string;
   role: Role;
-  language: LanguageCode;
+  language: LanguageCode; // content language of the whole site (header menu)
+  language_name: string; // its native name
   authorized: boolean;
   authorization_note: string | null;
 }
@@ -164,7 +166,7 @@ export interface MachinePage {
 
 // ---- video player (KAN-38, 50, 55, 56) ----
 
-export type TrackStatus = 'ready' | 'preparing' | 'none' | 'failed';
+export type TrackStatus = 'ready' | 'preparing' | 'none' | 'failed' | 'unavailable'; // unavailable: no dubbed voice for that language (subtitles only)
 export type StepStatus = 'waiting' | 'running' | 'done' | 'failed';
 
 export interface PipelineStep {
@@ -176,6 +178,7 @@ export interface PipelineStep {
 export interface VideoLanguageTrack {
   language: LanguageCode;
   language_name: string;
+  language_tr_name: string;
   dir: 'ltr' | 'rtl';
   is_original: boolean;
   subtitles: TrackStatus;

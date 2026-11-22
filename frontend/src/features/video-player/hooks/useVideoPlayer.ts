@@ -5,10 +5,17 @@ import { requestLanguage, retryStep } from '../api';
 
 const POLL_MS = 3000;
 export type SubtitleChoice = LanguageCode | 'off';
+export type TrackKind = 'audio' | 'subtitles';
 
-/** Loads the video, follows the backend's default tracks until the viewer picks one, polls while preparing. */
+/** Any language still being prepared (the viewer's own, or one picked from the menus). */
+function preparing(v: VideoDetail): boolean {
+  return v.preparation !== null || v.tracks.some((t) => t.subtitles === 'preparing' || t.audio === 'preparing');
+}
+
+/** Loads the video, follows the backend's default tracks until the viewer picks one, polls while preparing.
+ * A requested language becomes the choice at once and plays as soon as it is ready. */
 export function useVideoPlayer(videoId: number) {
-  const { state, reload } = useApi<VideoDetail>(`/videos/${videoId}`, (v) => (v.preparation ? POLL_MS : undefined));
+  const { state, reload } = useApi<VideoDetail>(`/videos/${videoId}`, (v) => (preparing(v) ? POLL_MS : undefined));
   const [audioChoice, setAudioChoice] = useState<LanguageCode | null>(null);
   const [subChoice, setSubChoice] = useState<SubtitleChoice | null>(null);
   const [error, setError] = useState<unknown>(null);
@@ -38,7 +45,11 @@ export function useVideoPlayer(videoId: number) {
     error,
     chooseAudio: setAudioChoice,
     chooseSubtitle: setSubChoice,
-    request: (lang: LanguageCode) => run(() => requestLanguage(videoId, lang)),
+    request: (lang: LanguageCode, kind: TrackKind) => {
+      if (kind === 'audio') setAudioChoice(lang);
+      else setSubChoice(lang);
+      return run(() => requestLanguage(videoId, lang));
+    },
     retry: (lang: LanguageCode, step: string) => run(() => retryStep(videoId, lang, step)),
   };
 }

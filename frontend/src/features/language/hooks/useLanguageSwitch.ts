@@ -3,8 +3,9 @@ import type { Language, LanguageCode } from '../../../api';
 import { useApi } from '../../../api';
 import { useAuth, useMe } from '../../auth';
 
-/** Content languages from the backend + the user's saved choice (KAN-46). `onChanged` refetches content. */
-export function useLanguageSwitch(onChanged: () => void) {
+/** Languages from the backend + the user's saved choice (KAN-46). Saving it updates the session's user, which
+ * re-opens the current page in the new language (AppLayout keys the page by language). */
+export function useLanguageSwitch() {
   const me = useMe();
   const { setLanguage } = useAuth();
   const { state } = useApi<Language[]>('/languages');
@@ -15,7 +16,6 @@ export function useLanguageSwitch(onChanged: () => void) {
     setError(null);
     try {
       await setLanguage(code);
-      onChanged();
     } catch (e: unknown) {
       setError(e);
     }

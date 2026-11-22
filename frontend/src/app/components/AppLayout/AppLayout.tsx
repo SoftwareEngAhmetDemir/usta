@@ -1,14 +1,18 @@
 import { Link, Outlet, useLocation } from 'react-router';
 import { AlertBell, AlertToast, useAlerts } from '../../../features/alerts';
 import { ROLE_LABEL, useAuth, useMe } from '../../../features/auth';
+import { LanguageMenu, useLanguageSwitch } from '../../../features/language';
+import { ErrorMessage } from '../../../components/ErrorMessage';
 import { NAV } from '../../nav';
 import { NavBar } from '../NavBar';
 
-/** Phone-first shell: header with bell, live alert toast, page, bottom menu. The patron panel is wide. */
+/** Phone-first shell: header with bell, site language menu and sign-out, live alert toast, page, bottom menu.
+ * The patron panel is wide. */
 export function AppLayout() {
   const me = useMe();
   const { signOut } = useAuth();
   const { list, toast, open } = useAlerts();
+  const lang = useLanguageSwitch();
   const wide = useLocation().pathname.startsWith('/panel');
 
   return (
@@ -17,11 +21,14 @@ export function AppLayout() {
         <Link className="brand" to="/">Usta Hafızası</Link>
         <span className="muted" style={{ color: '#cfe0ea' }}>{ROLE_LABEL[me.role]}</span>
         <AlertBell unread={list.unread_count} />
+        <LanguageMenu languages={lang.languages} current={lang.current} onChoose={(code) => void lang.choose(code)} />
         <button type="button" className="iconbtn" style={{ fontSize: 14, padding: "0 10px" }} onClick={() => void signOut()}>Çıkış yap</button>
       </header>
       <AlertToast alert={toast} onOpen={open} />
       <main className="content">
-        <Outlet />
+        <ErrorMessage error={lang.error} />
+        {/* keyed by language: choosing another one re-opens the page, so everything reloads in it */}
+        <Outlet key={me.language} />
       </main>
       <NavBar items={NAV[me.role]} />
     </div>

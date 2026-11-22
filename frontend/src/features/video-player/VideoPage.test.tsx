@@ -1,7 +1,7 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { me, videoDetail } from '../../test/fixtures';
-import { mockApi, renderAuthed } from '../../test/utils';
+import { chooseFrom, mockApi, renderAuthed } from '../../test/utils';
 import { VideoPage } from './VideoPage';
 
 const show = (url = '/videos/1') => renderAuthed(<VideoPage />, url, '/videos/:videoId');
@@ -24,9 +24,36 @@ describe('VideoPage', () => {
   it('switches audio to another stored language (KAN-56)', async () => {
     mockApi({ 'GET /auth/me': me('worker'), 'GET /videos/1': videoDetail });
     show();
-    const audio = await screen.findByRole('group', { name: 'Ses' });
-    await userEvent.click(within(audio).getByRole('button', { name: 'English' }));
+    await screen.findByRole('button', { name: 'Ses' });
+    await chooseFrom('Ses', /^English/);
     expect(screen.getByLabelText('Meme ve elektrot değişimi')).toHaveAttribute('src', '/uploads/videos/1/en.mp4');
+  });
+
+  it('keeps checking a language picked from the menu and plays it once it is ready', async () => {
+    const [tr, en, ar] = videoDetail.tracks;
+    const withArabic = (audio: 'none' | 'preparing' | 'ready') => ({
+      ...videoDetail,
+      tracks: [tr, en, { ...ar!, audio, stream_url: audio === 'ready' ? '/uploads/videos/1/ar.mp4' : null }],
+    });
+    let arabic: 'none' | 'preparing' | 'ready' = 'none';
+    mockApi({
+      'GET /auth/me': me('worker'),
+      'GET /videos/1': () => withArabic(arabic),
+      'POST /videos/1/languages/ar': () => { arabic = 'preparing'; return preparing.preparation; },
+    });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      show();
+      await screen.findByRole('button', { name: 'Ses' });
+      await chooseFrom('Ses', /^العربية · iste/);
+      await userEvent.click(screen.getByRole('button', { name: 'Ses' }));
+      expect(await screen.findByRole('option', { name: /^العربية · hazırlanıyor/ })).toHaveAttribute('aria-disabled', 'true');
+      arabic = 'ready'; // the backend finished; the page must notice without a reload
+      await vi.advanceTimersByTimeAsync(3000);
+      await waitFor(() => expect(screen.getByLabelText('Meme ve elektrot değişimi')).toHaveAttribute('src', '/uploads/videos/1/ar.mp4'));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('shows preparation progress, retries a step and requests a missing language (KAN-55)', async () => {
@@ -40,7 +67,7 @@ describe('VideoPage', () => {
     expect(await screen.findByText('Bu video العربية hazırlanıyor')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Tekrar dene' }));
     await waitFor(() => expect(calls.some((c) => c.path === '/videos/1/languages/ar/steps/dub/retry')).toBe(true));
-    await userEvent.click(within(screen.getByRole('group', { name: 'Altyazı' })).getByRole('button', { name: 'العربية · iste' }));
+    await chooseFrom('Altyazı', /^العربية · iste/);
     await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.path === '/videos/1/languages/ar')).toBe(true));
   });
 });

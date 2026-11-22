@@ -20,6 +20,7 @@ async def test_register_creates_a_worker_and_logs_in(client: AsyncClient, db: As
         "name": "Yusuf Kaya",
         "role": "worker",
         "language": "tr",
+        "language_name": "Türkçe",
         "authorized": False,
         "authorization_note": None,
     }

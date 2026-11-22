@@ -21,10 +21,13 @@ async def test_everything_needs_login(client: AsyncClient) -> None:
 async def test_languages_and_switching_content_language(client_as: ClientAs, make_user: MakeUser) -> None:
     c = await client_as(await make_user())
     langs = (await c.get("/api/languages")).json()
-    assert [lang["code"] for lang in langs] == ["tr", "en", "ar"]
-    assert langs[2] == {"code": "ar", "name": "العربية", "dir": "rtl"}
+    codes = [lang["code"] for lang in langs]
+    assert codes[:3] == ["tr", "en", "ar"] and len(set(codes)) == len(codes) > 70
+    assert langs[2] == {"code": "ar", "name": "العربية", "tr_name": "Arapça", "dir": "rtl"}
+    assert {"code": "fa", "name": "فارسی", "tr_name": "Farsça", "dir": "rtl"} in langs
+    assert {"code": "de", "name": "Deutsch", "tr_name": "Almanca", "dir": "ltr"} in langs
     res = await c.patch("/api/me/language", json={"language": "ar"})
-    assert res.status_code == 200 and res.json()["language"] == "ar"
+    assert res.status_code == 200 and res.json()["language"] == "ar" and res.json()["language_name"] == "العربية"
     bad = await c.patch("/api/me/language", json={"language": "xx"})
     assert bad.status_code == 422 and bad.json() == {"detail": "Bu dil desteklenmiyor."}
 

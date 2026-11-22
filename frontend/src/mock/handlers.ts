@@ -109,7 +109,11 @@ export function handle(db: MockDb, req: MockRequest): MockResponse {
   switch (route) {
     case 'GET /auth/me': return ok(me);
     case 'POST /auth/logout': db.user = null; return ok(null);
-    case 'PATCH /me/language': db.user = { ...me, language: field(body, 'language') }; return ok(db.user);
+    case 'PATCH /me/language': {
+      const language = field(body, 'language');
+      db.user = { ...me, language, language_name: fx.languages.find((l) => l.code === language)?.name ?? language };
+      return ok(db.user);
+    }
     case 'GET /machines/lookup': {
       const code = query.get('code')?.trim() ?? '';
       const link = /\/m\/(\d+)\/?$/.exec(code); // scanned QR URL, like the backend
@@ -161,7 +165,10 @@ export function handle(db: MockDb, req: MockRequest): MockResponse {
     case 'GET /me/inbox': return ok(db.inbox);
     case 'GET /questions/:id': {
       const q = db.inbox.find((x) => x.id === id);
-      return q ? ok(q) : fail(404, 'Soru bulunamadı veya cevaplandı.');
+      if (!q) return fail(404, 'Soru bulunamadı veya cevaplandı.');
+      const lang = query.get('lang'); // fake machine translation, like the backend's on-demand one
+      const dir = fx.languages.find((l) => l.code === lang)?.dir ?? 'ltr';
+      return ok(lang ? { ...q, question: { text: `[${lang}] ${q.question.text}`, lang, dir }, original_question: q.question } : q);
     }
     case 'POST /questions/:id/answer': {
       const q = db.inbox.find((x) => x.id === id);

@@ -6,18 +6,19 @@ import type {
 } from '../api/types';
 
 const ME: Record<Role, Me> = {
-  worker: { id: 10, name: 'Yusuf', role: 'worker', language: 'tr', authorized: false, authorization_note: null },
-  usta: { id: 7, name: 'Mehmet Usta', role: 'usta', language: 'tr', authorized: false, authorization_note: null },
-  technician: { id: 5, name: 'Emre K.', role: 'technician', language: 'tr', authorized: true, authorization_note: 'Forklift periyodik bakım yetki belgesi · 2027-03' },
-  patron: { id: 1, name: 'İşletme Sahibi', role: 'patron', language: 'tr', authorized: false, authorization_note: null },
+  worker: { id: 10, name: 'Yusuf', role: 'worker', language: 'tr', language_name: 'Türkçe', authorized: false, authorization_note: null },
+  usta: { id: 7, name: 'Mehmet Usta', role: 'usta', language: 'tr', language_name: 'Türkçe', authorized: false, authorization_note: null },
+  technician: { id: 5, name: 'Emre K.', role: 'technician', language: 'tr', language_name: 'Türkçe', authorized: true, authorization_note: 'Forklift periyodik bakım yetki belgesi · 2027-03' },
+  patron: { id: 1, name: 'İşletme Sahibi', role: 'patron', language: 'tr', language_name: 'Türkçe', authorized: false, authorization_note: null },
 };
-export const me = (role: Role, language = 'tr'): Me => ({ ...ME[role], language });
-
 export const languages: Language[] = [
-  { code: 'tr', name: 'Türkçe', dir: 'ltr' },
-  { code: 'en', name: 'English', dir: 'ltr' },
-  { code: 'ar', name: 'العربية', dir: 'rtl' },
+  { code: 'tr', name: 'Türkçe', tr_name: 'Türkçe', dir: 'ltr' },
+  { code: 'en', name: 'English', tr_name: 'İngilizce', dir: 'ltr' },
+  { code: 'ar', name: 'العربية', tr_name: 'Arapça', dir: 'rtl' },
+  { code: 'de', name: 'Deutsch', tr_name: 'Almanca', dir: 'ltr' },
 ];
+export const me = (role: Role, language = 'tr'): Me => ({ ...ME[role], language, language_name: languages.find((l) => l.code === language)?.name ?? language });
+
 
 export const maintenanceRecord: MaintenanceRecord = {
   id: 31, machine_id: 1, machine_name: 'Plazma Kesim Makinesi',
@@ -54,9 +55,9 @@ export const videoDetail: VideoDetail = {
   id: 1, machine_id: 1, machine_name: 'Plazma Kesim Makinesi', title: 'Meme ve elektrot değişimi', author_name: 'Mehmet Usta',
   created_at: '2026-11-12T10:00:00', duration_sec: 252, status: 'ready',
   tracks: [
-    { language: 'tr', language_name: 'Türkçe', dir: 'ltr', is_original: true, subtitles: 'ready', subtitle_url: '/uploads/videos/1/tr.vtt', audio: 'ready', stream_url: '/uploads/videos/1/original.mp4' },
-    { language: 'en', language_name: 'English', dir: 'ltr', is_original: false, subtitles: 'ready', subtitle_url: '/uploads/videos/1/en.vtt', audio: 'ready', stream_url: '/uploads/videos/1/en.mp4' },
-    { language: 'ar', language_name: 'العربية', dir: 'rtl', is_original: false, subtitles: 'none', subtitle_url: null, audio: 'none', stream_url: null },
+    { language: 'tr', language_name: 'Türkçe', language_tr_name: 'Türkçe', dir: 'ltr', is_original: true, subtitles: 'ready', subtitle_url: '/uploads/videos/1/tr.vtt', audio: 'ready', stream_url: '/uploads/videos/1/original.mp4' },
+    { language: 'en', language_name: 'English', language_tr_name: 'İngilizce', dir: 'ltr', is_original: false, subtitles: 'ready', subtitle_url: '/uploads/videos/1/en.vtt', audio: 'ready', stream_url: '/uploads/videos/1/en.mp4' },
+    { language: 'ar', language_name: 'العربية', language_tr_name: 'Arapça', dir: 'rtl', is_original: false, subtitles: 'none', subtitle_url: null, audio: 'none', stream_url: null },
   ],
   default_subtitle_language: 'tr', default_audio_language: 'tr', preparation: null,
   transcript: [

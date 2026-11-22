@@ -19,7 +19,7 @@ from app.ai.interfaces import AIUnavailableError
 from app.alerts.service import notify
 from app.context import AppContext
 from app.core import storage
-from app.core.languages import lang_name
+from app.core.languages import VOICED, lang_name
 from app.jobs.queue import JobFailedError, Payload, Progress
 from app.machines.models import Machine
 from app.search.chunking import TimedText, chunk_video
@@ -82,7 +82,12 @@ def _audio16k(video: Video) -> Path:
 async def create_steps(
     db: AsyncSession, video_id: int, pipeline: str, requested_by_id: int | None, *, first_done: bool = False
 ) -> list[VideoStep]:
-    defs = UPLOAD_STEPS if pipeline == UPLOAD_PIPELINE else LANGUAGE_STEPS
+    if pipeline == UPLOAD_PIPELINE:
+        defs = UPLOAD_STEPS
+    else:  # a language Google's free endpoint can't speak gets subtitles only
+        defs = (
+            LANGUAGE_STEPS if pipeline in VOICED else [s for s in LANGUAGE_STEPS if s[0] in ("translate", "subtitles")]
+        )
     steps = [
         VideoStep(
             video_id=video_id, pipeline=pipeline, position=i, key=key, label=label, requested_by_id=requested_by_id,
@@ -316,7 +321,7 @@ async def _mix(ctx: AppContext, db: AsyncSession, video: Video, lang: str) -> No
     total = max([float(video.duration_sec), *(p.end for p in plan)])
     await asyncio.to_thread(media.place_clips, placed, total, voice)
     src = storage.abs_path(video.stream or video.original)
-    await media.dub_track(voice, src, storage.abs_path(audio))
+    await media.dub_track(voice, storage.abs_path(audio))
     await media.mux_dub(
         src, storage.abs_path(audio), storage.abs_path(dubbed_rel(video.id, lang)), lang, video.language
     )

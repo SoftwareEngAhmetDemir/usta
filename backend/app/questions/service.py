@@ -7,10 +7,11 @@ from pydantic import BaseModel, StringConstraints
 from sqlalchemy import ColumnElement, and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.interfaces import Translator
 from app.auth.models import Role, User
 from app.context import AppContext
 from app.core import storage
-from app.core.languages import lang_name
+from app.core.languages import lang_name, localized
 from app.core.schemas import LocalizedText, PersonRef, UtcDateTime
 from app.documents.extract import BY_EXTENSION, SUPPORTED
 from app.documents.models import Document, DocumentType, SummaryStatus
@@ -19,7 +20,7 @@ from app.jobs.queue import Payload, Progress
 from app.machines.models import Machine
 from app.questions.models import Question, QuestionStatus
 from app.search.service import ChunkIn, Owner, embed_and_store
-from app.translations.service import Localizer, translate_everywhere
+from app.translations.service import AUTO_DETECT, Localizer, translate, translate_everywhere
 
 log = logging.getLogger(__name__)
 
@@ -142,6 +143,17 @@ def inbox_question(q: Question, loc: Localizer) -> InboxQuestion:
     )
 
 
+async def inbox_question_in(db: AsyncSession, translator: Translator, q: Question, lang: str) -> InboxQuestion:
+    """The question machine-translated into `lang`. Its language is detected, not taken from the asker's profile: a
+    Turkish-profile worker may type English."""
+    text = (await translate(db, translator, [q.text], AUTO_DETECT, lang))[0]
+    same = text.strip() == q.text.strip()
+    out = inbox_question(q, Localizer({}, q.language))
+    out.question = localized(text, lang)
+    out.original_question = None if same else localized(q.text, q.language)
+    return out
+
+
 def answerable_by(user: User) -> ColumnElement[bool]:
     """SQL condition: questions this user should answer (see permissions.can_answer); never their own."""
     not_mine = Question.asked_by_id != user.id
@@ -173,6 +185,13 @@ async def translate_question(ctx: AppContext, payload: Payload, progress: Progre
         q = await db.get(Question, int(payload["question_id"]))
         items = [(q.text, q.language)] if q else []
     await translate_everywhere(ctx, items)
+
+
+async def translate_all(ctx: AppContext, lang: str) -> None:
+    """Every question and answer into `lang` (a user just chose that language)."""
+    async with ctx.sessionmaker() as db:
+        items = _texts(list(await db.scalars(select(Question))))
+    await translate_everywhere(ctx, items, [lang])
 
 
 async def after_answer(ctx: AppContext, payload: Payload, progress: Progress) -> None:

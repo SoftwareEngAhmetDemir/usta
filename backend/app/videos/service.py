@@ -8,12 +8,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import storage
-from app.core.languages import LANGUAGES, lang_dir, lang_name
+from app.core.languages import LANGUAGES, VOICED, lang_dir, lang_name, lang_tr_name
 from app.core.schemas import Dir, UtcDateTime
 from app.videos.models import UPLOAD_PIPELINE, StepStatus, Video, VideoStep
 from app.videos.pipeline import dubbed_rel, segments, subtitle_rel
 
-TrackStatus = Literal["ready", "preparing", "none", "failed"]
+TrackStatus = Literal["ready", "preparing", "none", "failed", "unavailable"]  # unavailable: no voice for it
 Availability = Literal["original", "dubbed", "subtitles", "preparing", "on_demand"]
 
 
@@ -37,6 +37,7 @@ class VideoSummary(BaseModel):
 class VideoLanguageTrack(BaseModel):
     language: str
     language_name: str
+    language_tr_name: str  # for searching the language menus in Turkish
     dir: Dir
     is_original: bool
     subtitles: TrackStatus
@@ -112,6 +113,7 @@ def tracks(video: Video, steps: StepsByPipeline) -> list[VideoLanguageTrack]:
     original = VideoLanguageTrack(
         language=video.language,
         language_name=lang_name(video.language),
+        language_tr_name=lang_tr_name(video.language),
         dir=lang_dir(video.language),
         is_original=True,
         subtitles=_status(upload, "transcribe"),
@@ -124,11 +126,13 @@ def tracks(video: Video, steps: StepsByPipeline) -> list[VideoLanguageTrack]:
         if code == video.language:
             continue
         lang_steps = steps.get(code, [])
-        subtitles, audio = _status(lang_steps, "subtitles"), _status(lang_steps, "mix")
+        subtitles = _status(lang_steps, "subtitles")
+        audio: TrackStatus = _status(lang_steps, "mix") if code in VOICED else "unavailable"
         others.append(
             VideoLanguageTrack(
                 language=code,
                 language_name=lang_name(code),
+                language_tr_name=lang_tr_name(code),
                 dir=lang_dir(code),
                 is_original=False,
                 subtitles=subtitles,

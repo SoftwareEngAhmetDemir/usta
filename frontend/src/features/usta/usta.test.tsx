@@ -1,6 +1,6 @@
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { inboxQuestion, me, ustaProfile } from '../../test/fixtures';
+import { inboxQuestion, languages, me, ustaProfile } from '../../test/fixtures';
 import { mockApi, renderAuthed } from '../../test/utils';
 import { AlertsProvider } from '../alerts';
 import { ReplyPage, UstaHomePage, UstaProfilePage } from '.';
@@ -64,6 +64,23 @@ describe('usta screens', () => {
     expect(await screen.findByText('Gönderildi')).toBeInTheDocument();
     expect(OkXhr.url).toBe('/api/questions/51/answer');
     expect(OkXhr.sent?.get('text')).toBe('Hızı %10 düşür');
+  });
+
+  it('shows the question in another language the usta picks', async () => {
+    const german = { ...inboxQuestion, question: { text: 'Unter dem Schnitt bildet sich ein Grat', lang: 'de', dir: 'ltr' as const } };
+    const { calls } = mockApi({
+      'GET /auth/me': me('usta'),
+      'GET /questions/51': inboxQuestion,
+      'GET /questions/51?lang=de': german,
+      'GET /languages': languages,
+    });
+    renderAuthed(<ReplyPage />, '/usta/questions/51', '/usta/questions/:questionId');
+    expect(await screen.findByRole('button', { name: 'Soruyu şu dilde göster' })).toHaveTextContent('Türkçe');
+    await userEvent.click(screen.getByRole('button', { name: 'Soruyu şu dilde göster' }));
+    await userEvent.type(screen.getByRole('combobox'), 'alman');
+    await userEvent.keyboard('{Enter}');
+    expect(await screen.findByText('Unter dem Schnitt bildet sich ein Grat')).toBeInTheDocument();
+    expect(calls.some((c) => c.path === '/questions/51?lang=de')).toBe(true);
   });
 
   it('profile shows machines and answered questions (KAN-28)', async () => {

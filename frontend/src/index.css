@@ -118,6 +118,7 @@ a { color: var(--steel); }
 .kv dd { margin: 0; font-family: var(--mono); font-size: 13px; }
 .langbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; flex-wrap: wrap; background: #fff8dc; border: 1px solid #f0d77a; border-radius: 10px; padding: 8px 10px; }
 .langbar .label { color: #7a5c00; }
+.langbar .field { flex: 1; }
 
 /* ---------- video ---------- */
 .player { background: #0b1014; border-radius: 12px; overflow: hidden; }
@@ -191,4 +192,20 @@ progress.progress { width: 100%; height: 8px; border: 0; appearance: none; accen
 progress.progress::-webkit-progress-bar { background: var(--line); border-radius: 4px; }
 progress.progress::-webkit-progress-value { background: var(--safety); border-radius: 4px; }
 progress.progress::-moz-progress-bar { background: var(--safety); }
-.langbar > legend { float: left; width: 100%; padding: 0; }
+
+/* ---------- searchable drop-down (components/SearchSelect) ---------- */
+.searchselect { position: relative; }
+.searchselect-button { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 48px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); text-align: start; }
+.searchselect-button::after { content: '▾'; color: var(--ink-muted); }
+.searchselect-panel { position: absolute; z-index: 10; top: 100%; inset-inline-start: 0; margin-top: 4px; width: max(100%, 260px); max-width: 92vw; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.15); padding: 6px; }
+.searchselect-panel.end { inset-inline-start: auto; inset-inline-end: 0; }
+.searchselect-panel input { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.searchselect-panel ul { list-style: none; margin: 6px 0 0; padding: 0; max-height: min(50vh, 320px); overflow-y: auto; }
+.searchselect-panel li { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 8px 10px; border-radius: 6px; cursor: pointer; color: var(--ink); }
+.searchselect-panel li small { color: var(--ink-muted); font-size: 12px; }
+.searchselect-panel li.active { background: var(--app-bg); }
+.searchselect-panel li[aria-selected='true'] { font-weight: 600; color: var(--steel); }
+.searchselect-panel li[aria-disabled='true'] { color: var(--ink-muted); cursor: not-allowed; }
+.searchselect-panel li.empty { color: var(--ink-muted); cursor: default; }
+.apphead .searchselect-button { min-height: 40px; background: rgba(255,255,255,.12); border: 0; color: #fff; padding: 0 10px; font-size: 14px; }
+.apphead .searchselect-button::after { color: #cfe0ea; }

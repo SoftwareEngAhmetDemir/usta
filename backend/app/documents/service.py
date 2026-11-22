@@ -12,14 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.interfaces import AIUnavailableError
 from app.context import AppContext
 from app.core import storage
-from app.core.languages import DEFAULT_LANGUAGE, LANGUAGES, lang_dir, lang_name, localized
+from app.core.languages import DEFAULT_LANGUAGE, lang_dir, lang_name, localized
 from app.core.schemas import Dir, LocalizedText
 from app.documents.extract import Extracted, extract
 from app.documents.models import Document, DocumentPage, DocumentSummaryText, DocumentType, SummaryStatus
 from app.jobs.queue import Payload, Progress
 from app.search.chunking import chunk_document, with_heading
 from app.search.service import ChunkIn, Owner, delete_chunks, embed_and_store
-from app.translations.service import translate
+from app.translations.service import languages_in_use, translate
 
 log = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ async def job(ctx: AppContext, payload: Payload, progress: Progress) -> None:
 
 async def _store_summaries(db: AsyncSession, ctx: AppContext, doc_id: int, points: list[str]) -> None:
     await db.execute(delete(DocumentSummaryText).where(DocumentSummaryText.document_id == doc_id))
-    for lang in LANGUAGES:
+    for lang in await languages_in_use(db):
         try:
             translated = await translate(db, ctx.ai.translator, points, DEFAULT_LANGUAGE, lang)
         except AIUnavailableError as e:  # that language falls back to the Turkish summary
@@ -122,6 +122,25 @@ async def _store_summaries(db: AsyncSession, ctx: AppContext, doc_id: int, point
             continue
         db.add(DocumentSummaryText(document_id=doc_id, lang=lang, points=translated))
     await db.commit()
+
+
+async def translate_summaries(ctx: AppContext, lang: str) -> None:
+    """Add `lang` to every ready summary that lacks it (a user just chose that language)."""
+    async with ctx.sessionmaker() as db:
+        have = set(await db.scalars(select(DocumentSummaryText.document_id).where(DocumentSummaryText.lang == lang)))
+        rows = await db.scalars(
+            select(DocumentSummaryText).where(
+                DocumentSummaryText.lang == DEFAULT_LANGUAGE, DocumentSummaryText.document_id.not_in(have or {0})
+            )
+        )
+        for row in list(rows):
+            try:
+                points = await translate(db, ctx.ai.translator, row.points, DEFAULT_LANGUAGE, lang)
+            except AIUnavailableError as e:
+                log.warning("summary of document %s not translated to %s: %s", row.document_id, lang, e)
+                continue
+            db.add(DocumentSummaryText(document_id=row.document_id, lang=lang, points=points))
+            await db.commit()
 
 
 async def summaries(db: AsyncSession, doc_ids: list[int], lang: str) -> dict[int, DocumentSummaryText]:

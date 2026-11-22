@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { languages, machinePage, me } from '../../test/fixtures';
 import { mockApi, renderAuthed } from '../../test/utils';
@@ -36,16 +36,6 @@ describe('MachinePage (KAN-71)', () => {
     show();
     await screen.findByRole('heading', { name: 'Plazma Kesim Makinesi' });
     expect(screen.queryByText('QR kodu')).not.toBeInTheDocument();
-  });
-
-  it('switches content language, saves it on the profile and refetches (KAN-46)', async () => {
-    const { calls } = mockApi({ 'GET /auth/me': me('worker'), 'GET /languages': languages, 'GET /machines/1': machinePage, 'PATCH /me/language': me('worker', 'ar') });
-    show();
-    const bar = await screen.findByRole('group', { name: 'İçerik dili' });
-    await userEvent.click(within(bar).getByRole('button', { name: 'العربية' }));
-    await waitFor(() => expect(within(bar).getByRole('button', { name: 'العربية' })).toHaveAttribute('aria-pressed', 'true'));
-    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ language: 'ar' });
-    expect(calls.filter((c) => c.path === '/machines/1')).toHaveLength(2);
   });
 
   it('lets the machine\'s usta remove it after confirming, then goes home (KAN-27)', async () => {

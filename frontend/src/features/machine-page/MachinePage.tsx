@@ -2,19 +2,17 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import type { MachinePage as MachinePageData } from '../../api';
 import { useAction, useApi } from '../../api';
 import { AsyncView } from '../../components/AsyncView';
-import { ErrorMessage } from '../../components/ErrorMessage';
 import { PageTitle } from '../../components/PageTitle';
 import { archiveMachine } from './api';
 import { ArchiveMachine } from './components/ArchiveMachine';
 import { DocumentList } from './components/DocumentList';
-import { LanguageBar } from './components/LanguageBar';
 import { MachineHeader } from './components/MachineHeader';
 import { MachineQr } from './components/MachineQr';
 import { MaintenanceSection } from './components/MaintenanceSection';
 import { QaSection } from './components/QaSection';
 import { UstaList } from './components/UstaList';
 import { VideoList } from './components/VideoList';
-import { useLanguageSwitch } from './hooks/useLanguageSwitch';
+import { useMe } from '../auth';
 
 function highlightFrom(state: unknown): number | undefined {
   if (state && typeof state === 'object' && 'highlight' in state && typeof state.highlight === 'number') return state.highlight;
@@ -26,8 +24,7 @@ export function MachinePage() {
   const { machineId = '' } = useParams();
   const highlight = highlightFrom(useLocation().state);
   const { state, reload } = useApi<MachinePageData>(`/machines/${machineId}`);
-  const lang = useLanguageSwitch(reload);
-  const languageName = lang.languages.find((l) => l.code === lang.current)?.name ?? lang.current;
+  const languageName = useMe().language_name;
   const navigate = useNavigate();
   const archive = useAction(archiveMachine);
   const remove = async (id: number) => { if (await archive.run(id)) navigate('/', { replace: true }); };
@@ -40,8 +37,6 @@ export function MachinePage() {
           <>
             <MachineHeader machine={page.machine} />
             <UstaList ustas={page.ustas} />
-            <LanguageBar languages={lang.languages} current={lang.current} onChoose={lang.choose} />
-            <ErrorMessage error={lang.error} />
             {page.actions.ask && (
               <Link className="cta" to={`/m/${page.machine.id}/ask`}>
                 <span className="ic" aria-hidden="true">?</span>

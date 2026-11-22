@@ -37,9 +37,10 @@ class FasterWhisperTranscriber:
             return self._model
 
     def transcribe(self, audio: Path, language_hint: str | None) -> TranscriptionResult:
-        segments, info = self._load().transcribe(
+        model = self._load()
+        segments, info = model.transcribe(
             _read_wav(audio),
-            language=language_hint,  # None = detect
+            language=language_hint if language_hint in model.supported_languages else None,  # None = detect
             vad_filter=True,
             word_timestamps=True,
             beam_size=5,
