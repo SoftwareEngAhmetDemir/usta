@@ -3,6 +3,7 @@ import type { DocumentDetail } from '../../api';
 import { useApi } from '../../api';
 import { AsyncView } from '../../components/AsyncView';
 import { PageTitle } from '../../components/PageTitle';
+import { Card } from '../../components/ui/card';
 import { DOCUMENT_TYPE_LABEL } from '../../lib/labels';
 import { DocumentViewer } from './components/DocumentViewer';
 import { SummaryCard } from './components/SummaryCard';
@@ -25,12 +26,12 @@ export function DocumentPage() {
       <AsyncView state={state} onRetry={reload}>
         {(doc) => (
           <>
-            <div className="card">
-              <div className="strong">{doc.title}</div>
-              <div className="muted">
-                {t(DOCUMENT_TYPE_LABEL[doc.type])} · {doc.page_count}{' '}{t('sayfa ·')}{' '}<Link to={`/m/${doc.machine_id}`}>{doc.machine_name}</Link>
+            <Card className="gap-1">
+              <div className="text-lg leading-tight font-semibold">{doc.title}</div>
+              <div className="text-sm text-muted-foreground">
+                {t(DOCUMENT_TYPE_LABEL[doc.type])} · {doc.page_count} {t('sayfa ·')} <Link className="font-medium text-steel underline-offset-2 hover:underline" to={`/m/${doc.machine_id}`}>{doc.machine_name}</Link>
               </div>
-            </div>
+            </Card>
             <SummaryCard status={doc.summary_status} summary={doc.summary} />
             <DocumentViewer doc={doc} page={page} />
           </>

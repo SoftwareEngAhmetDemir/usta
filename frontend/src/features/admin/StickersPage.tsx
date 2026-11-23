@@ -1,3 +1,4 @@
+import { Download, Printer } from 'lucide-react';
 import { useState } from 'react';
 import type { AdminMachineList } from '../../api';
 import { useApi } from '../../api';
@@ -29,15 +30,15 @@ export function StickersPage() {
           const picked = data.machines.filter((m) => !excluded.has(m.id)).map((m) => m.id);
           return (
             <>
-              <div className="row wrap no-print">
+              <div className="flex flex-wrap items-center gap-2 print:hidden">
                 {picked.length === 0 ? (
-                  <span className="muted">{t('Yazdırmak için en az bir makine seçin.')}</span>
+                  <span className="text-sm text-muted-foreground">{t('Yazdırmak için en az bir makine seçin.')}</span>
                 ) : (
                   <>
-                    <a className="btn" data-size="small" href={stickerPdfUrl(excluded.size ? picked : undefined)} download>
-                      {t('PDF indir (')}{picked.length})
-                    </a>
-                    <Button variant="secondary" size="small" onClick={() => window.print()}>{t('Yazdır')}</Button>
+                    <Button asChild size="small">
+                      <a href={stickerPdfUrl(excluded.size ? picked : undefined)} download><Download aria-hidden="true" />{t('PDF indir (')}{picked.length})</a>
+                    </Button>
+                    <Button variant="secondary" size="small" onClick={() => window.print()}><Printer aria-hidden="true" />{t('Yazdır')}</Button>
                   </>
                 )}
               </div>

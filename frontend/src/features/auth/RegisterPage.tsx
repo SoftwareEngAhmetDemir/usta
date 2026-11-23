@@ -24,10 +24,10 @@ export function RegisterPage() {
 
   return (
     <AuthShell title={t('Kayıt ol')}>
-      <p className="muted" style={{ margin: 0 }}>{t('İşçi veya Usta olarak kayıt olabilirsiniz; Teknisyen ve Patron yetkisini patron verir.')}</p>
+      <p className="m-0 text-sm text-muted-foreground">{t('İşçi veya Usta olarak kayıt olabilirsiniz; Teknisyen ve Patron yetkisini patron verir.')}</p>
       <RegisterForm onSubmit={submit} />
-      <p className="muted" style={{ margin: 0 }}>
-        {t('Zaten hesabınız var mı?')}{' '}<Link to="/login" state={state}>{t('Giriş yap')}</Link>
+      <p className="m-0 text-sm text-muted-foreground">
+        {t('Zaten hesabınız var mı?')}{' '}<Link to="/login" state={state} className="font-semibold text-steel underline underline-offset-4">{t('Giriş yap')}</Link>
       </p>
     </AuthShell>
   );

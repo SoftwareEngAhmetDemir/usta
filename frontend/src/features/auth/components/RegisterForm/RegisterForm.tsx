@@ -2,7 +2,11 @@ import { useState, type FormEvent } from 'react';
 import type { RegisterIn, RegisterRole } from '../../../../api';
 import { errorMessage } from '../../../../api';
 import { Button } from '../../../../components/Button';
+import { Chip } from '../../../../components/Chip';
 import { Field } from '../../../../components/Field';
+import { Card } from '../../../../components/ui/card';
+import { Input } from '../../../../components/ui/input';
+import { Alert, AlertDescription } from '../../../../components/ui/alert';
 import { ROLE_LABEL } from '../../constants';
 import { useT } from '../../../../i18n';
 
@@ -32,28 +36,30 @@ export function RegisterForm({ onSubmit }: { onSubmit: (body: RegisterIn) => Pro
   }
 
   return (
-    <form className="card stack" onSubmit={submit} noValidate>
-      <fieldset className="field">
-        <legend className="label">{t('Rol')}</legend>
-        <div className="chips">
+    <form onSubmit={submit} noValidate>
+      <Card>
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{t('Rol')}</legend>
+        <div className="grid grid-cols-2 gap-2">
           {ROLES.map((r) => (
-            <button key={r} type="button" className="chip" aria-pressed={role === r} onClick={() => setRole(r)}>
+            <Chip key={r} aria-pressed={role === r} onClick={() => setRole(r)} className="h-11 justify-center rounded-lg">
               {ROLE_LABEL[r]}
-            </button>
+            </Chip>
           ))}
         </div>
       </fieldset>
       <Field label={t('Ad soyad')} htmlFor="name">
-        <input id="name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+        <Input id="name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
       <Field label={t('Telefon veya e-posta')} htmlFor="login">
-        <input id="login" autoComplete="username" inputMode="email" value={login} onChange={(e) => setLogin(e.target.value)} />
+        <Input id="login" autoComplete="username" inputMode="email" value={login} onChange={(e) => setLogin(e.target.value)} />
       </Field>
       <Field label={t('Şifre (en az 8 karakter)')} htmlFor="password">
-        <input id="password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <Input id="password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
       </Field>
-      {error && <div className="alert-error" role="alert">{error}</div>}
+      {error && <Alert variant="destructive" className="border-destructive/30 bg-destructive/5"><AlertDescription className="text-destructive">{t(error)}</AlertDescription></Alert>}
       <Button type="submit" loading={pending}>{t('Kayıt ol')}</Button>
+      </Card>
     </form>
   );
 }

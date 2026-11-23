@@ -6,6 +6,7 @@ import { AsyncView } from '../../components/AsyncView';
 import { ErrorMessage } from '../../components/ErrorMessage';
 import { PageTitle } from '../../components/PageTitle';
 import { ProgressBar } from '../../components/ProgressBar';
+import { Card } from '../../components/ui/card';
 import { useMe } from '../auth';
 import { createMaintenance, type MaintenanceIn } from './api';
 import { MaintenanceForm } from './components/MaintenanceForm';
@@ -40,11 +41,11 @@ export function MaintenanceFormPage() {
       <AsyncView state={state} onRetry={reload}>
         {(opts) => (
           <>
-            <div className="card">
-              <div className="strong">{opts.machine.name}</div>
-              <div className="muted">{opts.machine.code} · {opts.machine.model} · {opts.machine.location}</div>
-            </div>
-            <div className="label">{t('Yapan')}</div>
+            <Card className="gap-1">
+              <div className="text-lg leading-tight font-semibold">{opts.machine.name}</div>
+              <div className="font-mono text-sm text-muted-foreground">{opts.machine.code} · {opts.machine.model} · {opts.machine.location}</div>
+            </Card>
+            <div className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{t('Yapan')}</div>
             <MeCard me={me} note={t('giriş yapan kullanıcı')} />
             {progress !== null && <ProgressBar fraction={progress} label={t('Kaydediliyor')} />}
             <ErrorMessage error={error} />

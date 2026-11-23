@@ -15,7 +15,7 @@ it('StickerSheet ticks the machines that will be printed and reports a toggle', 
   const forklift = screen.getByRole('checkbox', { name: 'Forklift 3 yazdır' });
   expect(screen.getByRole('checkbox', { name: 'Plazma Kesim Makinesi yazdır' })).toBeChecked();
   expect(forklift).not.toBeChecked();
-  expect(forklift.closest('.label-card')).toHaveClass('no-print');
+  expect(forklift.closest('[data-excluded]')).not.toBeNull(); // greyed out and left off the print
   await userEvent.click(screen.getByRole('checkbox', { name: 'Plazma Kesim Makinesi yazdır' }));
   expect(onToggle).toHaveBeenCalledWith(1);
 });

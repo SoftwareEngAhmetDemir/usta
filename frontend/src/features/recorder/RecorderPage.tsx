@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router';
 import type { Machine } from '../../api';
 import { useApi } from '../../api';
 import { ErrorMessage } from '../../components/ErrorMessage';
+import { Notice } from '../../components/Notice';
 import { PageTitle } from '../../components/PageTitle';
 import { ProgressBar } from '../../components/ProgressBar';
 import { CameraView } from './components/CameraView';
@@ -41,14 +42,14 @@ export function RecorderPage() {
       {machines.state.status === 'ok' && <MachineSelect machines={list} value={chosen} onChange={setMachineId} />}
       <ErrorMessage error={machines.state.status === 'error' ? machines.state.error : null} onRetry={machines.reload} />
       {chosen === null && list.length > 0 && (
-        <p className="muted">
-          {t('Önce videonun hangi makine için olduğunu seçin: listeden seçin ya da')}{' '}<Link to="/scan">{t('makinenin QR kodunu okutun')}</Link>.
-        </p>
+        <Notice tone="info">
+          {t('Önce videonun hangi makine için olduğunu seçin: listeden seçin ya da')} <Link className="font-semibold text-steel underline underline-offset-2" to="/scan">{t('makinenin QR kodunu okutun')}</Link>.
+        </Notice>
       )}
       {chosen !== null && (
         <>
           <CameraView stream={camera.stream} previewUrl={rec.clip?.url ?? null} recordingSec={rec.recording ? rec.seconds : null} />
-          {(camera.error ?? rec.error) && <div className="alert-error" role="alert">{t(camera.error ?? rec.error ?? '')}</div>}
+          {(camera.error ?? rec.error) && <Notice tone="bad">{t(camera.error ?? rec.error ?? '')}</Notice>}
           {rec.clip ? (
             <>
               {up.state.status === 'uploading' && <ProgressBar fraction={up.state.progress} label={t('Yükleniyor')} />}
@@ -58,7 +59,7 @@ export function RecorderPage() {
                 onRetake={() => { rec.discard(); up.reset(); }}
                 onSave={(title) => { if (rec.clip) void up.upload(chosen, title, rec.clip); }}
               />
-              {up.state.status === 'error' && <p className="muted" style={{ margin: 0 }}>{t('Kayıt telefonda duruyor; "Kaydet" ile tekrar deneyin.')}</p>}
+              {up.state.status === 'error' && <p className="m-0 text-sm text-muted-foreground">{t('Kayıt telefonda duruyor; "Kaydet" ile tekrar deneyin.')}</p>}
             </>
           ) : (
             <RecordControls cameraOn={camera.stream !== null} recording={rec.recording} onOpenCamera={() => void camera.start()} onStart={rec.start} onStop={rec.stop} onFlip={() => void camera.flip()} onPick={rec.pick} />

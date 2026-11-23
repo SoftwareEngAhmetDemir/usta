@@ -1,4 +1,6 @@
+import { ClipboardList } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
+import { Button } from '../../components/Button';
 import { request, useAction } from '../../api';
 import { ErrorMessage } from '../../components/ErrorMessage';
 import { CodeForm } from './components/CodeForm';
@@ -23,7 +25,7 @@ export function ScanPage() {
       <QrScanner onCode={open} />
       <CodeForm pending={find.pending} onSubmit={open} />
       <ErrorMessage error={find.error} />
-      <Link className="btn" data-variant="secondary" to="/my-questions">{t('Sorularım')}</Link>
+      <Button asChild variant="secondary"><Link to="/my-questions"><ClipboardList aria-hidden="true" />{t('Sorularım')}</Link></Button>
     </>
   );
 }

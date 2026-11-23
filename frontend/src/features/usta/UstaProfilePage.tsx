@@ -1,4 +1,6 @@
+import { UserRound } from 'lucide-react';
 import { useParams } from 'react-router';
+import { Card } from '../../components/ui/card';
 import type { UstaProfile } from '../../api';
 import { useApi } from '../../api';
 import { AsyncView } from '../../components/AsyncView';
@@ -20,15 +22,18 @@ export function UstaProfilePage() {
       <AsyncView state={state} onRetry={reload}>
         {(p) => (
           <>
-            <div className="card stack">
-              <h2 style={{ margin: 0 }}>🧰 {p.name}</h2>
-              <div className="label">{t('Bildiği makineler')}</div>
+            <Card>
+              <div className="flex items-center gap-3">
+                <span className="grid size-12 place-items-center rounded-full bg-steel text-steel-foreground" aria-hidden="true"><UserRound className="size-6" /></span>
+                <h2 className="m-0 text-xl font-semibold">{p.name}</h2>
+              </div>
+              <div className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{t('Bildiği makineler')}</div>
               <MachineChips machines={p.machines} />
-            </div>
+            </Card>
             <SectionTitle title={t('Cevapladığı sorular')} extra={p.answered.length} />
-            <div className="card">
-              {p.answered.length === 0 ? <EmptyState message={t('Henüz cevap yok.')} /> : p.answered.map((q) => <QaCard key={q.id} entry={q} showMachine />)}
-            </div>
+            {p.answered.length === 0 ? <EmptyState message={t('Henüz cevap yok.')} /> : (
+              <Card className="gap-0">{p.answered.map((q) => <QaCard key={q.id} entry={q} showMachine />)}</Card>
+            )}
           </>
         )}
       </AsyncView>

@@ -11,6 +11,6 @@ describe('MachineChips', () => {
   it('shows an empty message', () => {
     render(<MemoryRouter><MachineChips machines={[]} /></MemoryRouter>);
     expect(screen.getByText('Henüz bağlı makine yok.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '+ Makine ekle' })).toHaveAttribute('href', '/machines/new');
+    expect(screen.getByRole('link', { name: 'Makine ekle' })).toHaveAttribute('href', '/machines/new');
   });
 });

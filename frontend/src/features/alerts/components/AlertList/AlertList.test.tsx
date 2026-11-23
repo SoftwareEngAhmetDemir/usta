@@ -12,8 +12,8 @@ describe('AlertList', () => {
   it('marks unread items and opens on tap', async () => {
     const onOpen = vi.fn();
     render(<AlertList items={[a, { ...a, id: 2, text: 'Eski', read: true }]} onOpen={onOpen} />);
-    expect(screen.getByText('Cevap geldi')).toHaveClass('unread');
-    expect(screen.getByText('Eski')).not.toHaveClass('unread');
+    expect(screen.getByText('Cevap geldi')).toHaveAttribute('data-unread');
+    expect(screen.getByText('Eski')).not.toHaveAttribute('data-unread');
     await userEvent.click(screen.getByRole('button', { name: /Cevap geldi/ }));
     expect(onOpen).toHaveBeenCalledWith(a);
   });

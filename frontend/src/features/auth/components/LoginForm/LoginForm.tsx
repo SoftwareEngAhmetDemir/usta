@@ -3,6 +3,9 @@ import type { LoginIn } from '../../../../api';
 import { ApiError, errorMessage } from '../../../../api';
 import { Button } from '../../../../components/Button';
 import { Field } from '../../../../components/Field';
+import { Card } from '../../../../components/ui/card';
+import { Input } from '../../../../components/ui/input';
+import { Alert, AlertDescription } from '../../../../components/ui/alert';
 import { useT } from '../../../../i18n';
 
 function loginError(error: unknown): string {
@@ -31,15 +34,17 @@ export function LoginForm({ onSubmit }: { onSubmit: (body: LoginIn) => Promise<u
   }
 
   return (
-    <form className="card stack" onSubmit={submit} noValidate>
+    <form onSubmit={submit} noValidate>
+      <Card>
       <Field label={t('Telefon veya e-posta')} htmlFor="login">
-        <input id="login" autoComplete="username" inputMode="email" value={login} onChange={(e) => setLogin(e.target.value)} />
+        <Input id="login" autoComplete="username" inputMode="email" value={login} onChange={(e) => setLogin(e.target.value)} />
       </Field>
       <Field label={t('Şifre')} htmlFor="password">
-        <input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
       </Field>
-      {error && <div className="alert-error" role="alert">{error}</div>}
+      {error && <Alert variant="destructive" className="border-destructive/30 bg-destructive/5"><AlertDescription className="text-destructive">{t(error)}</AlertDescription></Alert>}
       <Button type="submit" loading={pending}>{t('Giriş yap')}</Button>
+      </Card>
     </form>
   );
 }

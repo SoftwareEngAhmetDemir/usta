@@ -1,7 +1,9 @@
-import { Link } from 'react-router';
+import { ScanLine } from 'lucide-react';
 import type { MaintenanceRecord } from '../../api';
 import { useApi } from '../../api';
 import { AsyncView } from '../../components/AsyncView';
+import { CtaLink } from '../../components/CtaLink';
+import { Card } from '../../components/ui/card';
 import { EmptyState } from '../../components/EmptyState';
 import { MaintenanceTimeline } from '../../components/MaintenanceTimeline';
 import { SectionTitle } from '../../components/SectionTitle';
@@ -17,16 +19,11 @@ export function TechHomePage() {
   return (
     <>
       <MeCard me={me} />
-      <Link className="cta" to="/scan">
-        <span className="ic" aria-hidden="true">⌁</span>
-        <span className="grow"><b>{t('Makinenin QR\'ını tara')}</b><small>{t('Makine sayfasından "Bakım kaydı" açın')}</small></span>
-      </Link>
+      <CtaLink to="/scan" icon={ScanLine} title={t('Makinenin QR\'ını tara')} hint={t('Makine sayfasından "Bakım kaydı" açın')} />
       <SectionTitle title={t('Son kayıtlarım')} />
       <AsyncView state={state} onRetry={reload}>
         {(records) => (
-          <div className="card">
-            {records.length === 0 ? <EmptyState message={t('Henüz bakım kaydınız yok.')} /> : <MaintenanceTimeline records={records} showMachine />}
-          </div>
+          records.length === 0 ? <EmptyState message={t('Henüz bakım kaydınız yok.')} /> : <Card><MaintenanceTimeline records={records} showMachine /></Card>
         )}
       </AsyncView>
     </>

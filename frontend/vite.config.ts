@@ -1,12 +1,15 @@
 /// <reference types="vitest/config" />
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 
 // The FastAPI backend runs on :8000; the browser only talks to the Vite origin, so cookies stay same-site.
 const backend = process.env.VITE_BACKEND_URL ?? 'http://localhost:8000'
 
 export default defineConfig(({ mode }) => ({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: {
     host: true,
     // The phone opens the app over the VS Code forwarded port (https, needed for the camera); Vite blocks unknown hosts.

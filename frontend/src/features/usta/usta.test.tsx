@@ -86,7 +86,7 @@ describe('usta screens', () => {
   it('profile shows machines and answered questions (KAN-28)', async () => {
     mockApi({ 'GET /auth/me': me('worker'), 'GET /ustas/7': ustaProfile });
     renderAuthed(<UstaProfilePage />, '/ustas/7', '/ustas/:ustaId');
-    expect(await screen.findByRole('heading', { name: '🧰 Mehmet Usta' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Mehmet Usta' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'AB-01 · Abkant Pres' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Cevapladığı sorular/ })).toHaveTextContent('1');
   });

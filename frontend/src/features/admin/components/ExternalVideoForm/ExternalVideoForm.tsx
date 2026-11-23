@@ -3,6 +3,10 @@ import type { AdminMachineRow, ExternalSource } from '../../../../api';
 import { Button } from '../../../../components/Button';
 import { ErrorMessage } from '../../../../components/ErrorMessage';
 import { Field } from '../../../../components/Field';
+import { Notice } from '../../../../components/Notice';
+import { Card } from '../../../../components/ui/card';
+import { Input } from '../../../../components/ui/input';
+import { NativeSelect, NativeSelectOption } from '../../../../components/ui/native-select';
 import { EXTERNAL_SOURCE_LABEL } from '../../../../lib/labels';
 import type { SubmitState } from '../../hooks/useFormSubmit';
 import type { ExternalVideoSubmit } from '../../types';
@@ -34,26 +38,28 @@ export function ExternalVideoForm({ machines, defaultMachineId, state, onSubmit 
   }
 
   return (
-    <form className="card stack" onSubmit={submit} noValidate aria-label={t('Dış video ekle')}>
-      <div className="label">{t('Dış video ekle')}</div>
+    <form onSubmit={submit} noValidate aria-label={t('Dış video ekle')}>
+      <Card className="gap-4">
+      <div className="font-display text-lg font-semibold tracking-wide text-steel uppercase">{t('Dış video ekle')}</div>
       <Field label={t('Makine')} htmlFor="ext-machine">
-        <select id="ext-machine" value={machineId} onChange={(e) => setMachineId(e.target.value)}>
-          <option value="">{t('Seçin')}</option>
-          {machines.map((m) => <option key={m.id} value={m.id}>{m.code} · {m.name}</option>)}
-        </select>
+        <NativeSelect id="ext-machine" value={machineId} onChange={(e) => setMachineId(e.target.value)}>
+          <NativeSelectOption value="">{t('Seçin')}</NativeSelectOption>
+          {machines.map((m) => <NativeSelectOption key={m.id} value={m.id}>{m.code} · {m.name}</NativeSelectOption>)}
+        </NativeSelect>
       </Field>
-      <Field label={t('Başlık')} htmlFor="ext-title"><input id="ext-title" value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+      <Field label={t('Başlık')} htmlFor="ext-title"><Input id="ext-title" value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
       <Field label={t('Bağlantı (YouTube vb.)')} htmlFor="ext-url" error={error}>
-        <input id="ext-url" type="url" inputMode="url" value={url} onChange={(e) => setUrl(e.target.value)} />
+        <Input id="ext-url" type="url" inputMode="url" value={url} onChange={(e) => setUrl(e.target.value)} />
       </Field>
       <Field label={t('Kaynak')} htmlFor="ext-source">
-        <select id="ext-source" value={source} onChange={(e) => setSource(e.target.value as ExternalSource)}>
-          {SOURCES.map(([k, label]) => <option key={k} value={k}>{t(label)}</option>)}
-        </select>
+        <NativeSelect id="ext-source" value={source} onChange={(e) => setSource(e.target.value as ExternalSource)}>
+          {SOURCES.map(([k, label]) => <NativeSelectOption key={k} value={k}>{t(label)}</NativeSelectOption>)}
+        </NativeSelect>
       </Field>
       {state.status === 'error' && <ErrorMessage error={state.error} />}
-      {state.status === 'done' && <output><span className="pill ok">{t('Eklendi')}</span>{' '}{t('Makine sayfasında görünür.')}</output>}
+      {state.status === 'done' && <Notice tone="ok" title={t('Eklendi')}>{t('Makine sayfasında görünür.')}</Notice>}
       <Button type="submit" loading={state.status === 'sending'}>{t('Ekle')}</Button>
+      </Card>
     </form>
   );
 }

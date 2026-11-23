@@ -20,6 +20,7 @@ export function LanguageMenu({ languages, current, onChoose }: Props) {
       hideLabel
       alignEnd
       value={current}
+      variant="header"
       buttonText={`🌐 ${current.toUpperCase()}`}
       options={languages.map(languageOption)}
       onChange={onChoose}

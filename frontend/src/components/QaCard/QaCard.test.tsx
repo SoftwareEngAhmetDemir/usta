@@ -21,7 +21,7 @@ describe('QaCard', () => {
   it('shows question and answer in the viewer language with links', () => {
     render(<MemoryRouter><QaCard entry={entry} showMachine /></MemoryRouter>);
     expect(screen.getByText('افحص الضغط')).toHaveAttribute('dir', 'rtl');
-    expect(screen.getByRole('link', { name: '▶ Cevap videosu' })).toHaveAttribute('href', '/videos/4');
+    expect(screen.getByRole('link', { name: 'Cevap videosu' })).toHaveAttribute('href', '/videos/4');
     expect(screen.getByRole('link', { name: 'Mehmet Usta' })).toHaveAttribute('href', '/ustas/7');
     expect(screen.getByRole('link', { name: 'Plazma Kesim' })).toHaveAttribute('href', '/m/1');
     expect(screen.getByText('Ne kontrol etmeliyim?')).toBeInTheDocument();

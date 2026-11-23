@@ -2,6 +2,7 @@ import { useNavigate, useParams } from 'react-router';
 import type { MachinePage } from '../../api';
 import { useApi } from '../../api';
 import { AsyncView } from '../../components/AsyncView';
+import { Notice } from '../../components/Notice';
 import { PageTitle } from '../../components/PageTitle';
 import { DocumentUploadForm, uploadDocument, useFormSubmit } from '../admin';
 import { useT } from '../../i18n';
@@ -27,7 +28,7 @@ export function DocumentUploadPage() {
               onSubmit={(body) => void send.submit(body).then((ok) => { if (ok) navigate(`/m/${machine.id}`); })}
             />
           ) : (
-            <div className="alert-error" role="alert">{t('Bu makineye belge yükleme yetkiniz yok. Makinenin ustası veya patron yükleyebilir.')}</div>
+            <Notice tone="bad">{t('Bu makineye belge yükleme yetkiniz yok. Makinenin ustası veya patron yükleyebilir.')}</Notice>
           )
         }
       </AsyncView>

@@ -1,5 +1,6 @@
 import type { LanguageCode, VideoLanguageTrack } from '../../../../api';
 import { SearchSelect } from '../../../../components/SearchSelect';
+import { Card } from '../../../../components/ui/card';
 import type { SearchOption } from '../../../../components/SearchSelect';
 import type { TrackKind as Kind } from '../../hooks/useVideoPlayer';
 import { useT } from '../../../../i18n';
@@ -36,7 +37,7 @@ export function TrackPicker({ tracks, audio, subtitle, onAudio, onSubtitle, onRe
   }
   const voiced = tracks.filter((x) => x.audio !== 'unavailable');
   return (
-    <div className="card stack">
+    <Card className="grid gap-3 sm:grid-cols-2">
       <SearchSelect
         id="subtitle-language"
         label={t('Altyazı')}
@@ -51,6 +52,6 @@ export function TrackPicker({ tracks, audio, subtitle, onAudio, onSubtitle, onRe
         options={voiced.map((x) => option(x, 'audio', t))}
         onChange={(v) => pick('audio', v, onAudio)}
       />
-    </div>
+    </Card>
   );
 }

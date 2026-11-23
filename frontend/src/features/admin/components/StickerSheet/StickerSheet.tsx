@@ -13,16 +13,20 @@ interface StickerSheetProps {
 export function StickerSheet({ machines, excluded, onToggle }: StickerSheetProps) {
   const t = useT();
   return (
-    <div className="labels">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3">
       {machines.map((m) => (
-        <div key={m.id} className={excluded.has(m.id) ? 'label-card no-print' : 'label-card'}>
-          <label className="row no-print">
-            <input type="checkbox" aria-label={`${m.name} ${t('yazdır')}`} checked={!excluded.has(m.id)} onChange={() => onToggle(m.id)} />
+        <div
+          key={m.id}
+          data-excluded={excluded.has(m.id) || undefined}
+          className="flex break-inside-avoid flex-col items-center gap-1.5 rounded-xl border-2 border-dashed border-input bg-white p-3 text-center transition-opacity data-excluded:opacity-45 data-excluded:print:hidden"
+        >
+          <label className="flex items-center gap-2 self-start text-sm print:hidden">
+            <input type="checkbox" className="size-4 accent-steel" aria-label={`${m.name} ${t('yazdır')}`} checked={!excluded.has(m.id)} onChange={() => onToggle(m.id)} />
             {t('Yazdır')}
           </label>
-          <img src={qrImageUrl(m.id)} alt={`${m.name} ${t('QR kodu')}`} />
-          <b>{m.name}</b>
-          <code>{m.code}{' '}{t('· /m/')}{m.id}</code>
+          <img src={qrImageUrl(m.id)} alt={`${m.name} ${t('QR kodu')}`} className="size-[120px]" />
+          <b className="font-display text-lg font-semibold uppercase">{m.name}</b>
+          <code className="font-mono text-[11px] text-muted-foreground">{m.code} {t('· /m/')}{m.id}</code>
         </div>
       ))}
     </div>

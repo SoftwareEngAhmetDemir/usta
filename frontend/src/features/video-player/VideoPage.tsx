@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { AsyncView } from '../../components/AsyncView';
 import { ErrorMessage } from '../../components/ErrorMessage';
+import { Notice } from '../../components/Notice';
 import { PageTitle } from '../../components/PageTitle';
+import { Card } from '../../components/ui/card';
 import { formatDate } from '../../lib/format';
 import { Player } from './components/Player';
 import { PreparationCard } from './components/PreparationCard';
@@ -28,16 +30,16 @@ export function VideoPage() {
         {(v) => (
           <>
             {v.status !== 'ready' || !p.audio ? (
-              <div className="card warn">{t('Video henüz işleniyor. Hazır olunca burada oynatılır.')}</div>
+              <Notice tone="waiting" title={t('Video henüz işleniyor. Hazır olunca burada oynatılır.')} />
             ) : (
               <Player title={v.title} audio={p.audio} subtitle={p.subtitle} seek={seek} onTime={setNow} />
             )}
-            <div className="card">
-              <div className="strong">{v.title}</div>
-              <div className="muted">
-                {v.author_name} · {formatDate(v.created_at)} · <Link to={`/m/${v.machine_id}`}>{v.machine_name}</Link>
+            <Card className="gap-1">
+              <div className="text-lg leading-tight font-semibold">{v.title}</div>
+              <div className="text-sm text-muted-foreground">
+                {v.author_name} · {formatDate(v.created_at)} · <Link className="font-medium text-steel underline-offset-2 hover:underline" to={`/m/${v.machine_id}`}>{v.machine_name}</Link>
               </div>
-            </div>
+            </Card>
             {v.preparation && <PreparationCard preparation={v.preparation} onRetry={(step) => p.retry(v.preparation?.language ?? '', step)} />}
             <ErrorMessage error={p.error} />
             <TrackPicker

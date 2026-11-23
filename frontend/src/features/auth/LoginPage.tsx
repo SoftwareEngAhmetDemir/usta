@@ -25,11 +25,11 @@ export function LoginPage() {
 
   return (
     <AuthShell title={t('Giriş')}>
-      <p className="muted" style={{ margin: 0 }}>{t('Bir kez giriş yapın, telefonunuzda açık kalır.')}</p>
+      <p className="m-0 text-sm text-muted-foreground">{t('Bir kez giriş yapın, telefonunuzda açık kalır.')}</p>
       {import.meta.env.VITE_MOCK === '1' && <DemoLogin onLogin={(body) => void submit(body)} />}
       <LoginForm onSubmit={submit} />
-      <p className="muted" style={{ margin: 0 }}>
-        {t('Hesabınız yok mu?')}{' '}<Link to="/register" state={state}>{t('Kayıt ol')}</Link>
+      <p className="m-0 text-sm text-muted-foreground">
+        {t('Hesabınız yok mu?')}{' '}<Link to="/register" state={state} className="font-semibold text-steel underline underline-offset-4">{t('Kayıt ol')}</Link>
       </p>
     </AuthShell>
   );

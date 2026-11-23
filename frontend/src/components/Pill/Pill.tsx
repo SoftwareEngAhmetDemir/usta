@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-
-export type PillTone = 'ok' | 'warn' | 'bad' | 'info';
+import { cn } from 'cn';
+import { Badge } from '../ui/badge';
+import { TONE_CLASS, type PillTone } from './tones';
 
 export function Pill({ tone, children }: { tone: PillTone; children: ReactNode }) {
-  return <span className={`pill ${tone}`}>{children}</span>;
+  return <Badge data-tone={tone} className={cn('font-semibold', TONE_CLASS[tone])}>{children}</Badge>;
 }

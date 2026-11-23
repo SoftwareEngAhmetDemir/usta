@@ -1,7 +1,10 @@
+import { Play } from 'lucide-react';
 import { Link } from 'react-router';
 import type { VideoAvailability, VideoSummary } from '../../../../api';
 import type { PillTone } from '../../../../components/Pill';
+import { ListItem } from '../../../../components/ListItem';
 import { Pill } from '../../../../components/Pill';
+import { Thumb } from '../../../../components/Thumb';
 import { formatDate, formatDuration } from '../../../../lib/format';
 import { useT } from '../../../../i18n';
 import type { Translate } from '../../../../i18n';
@@ -25,19 +28,17 @@ function StatusPill({ video, languageName }: { video: VideoSummary; languageName
 export function VideoItem({ video, languageName }: { video: VideoSummary; languageName: string }) {
   const body = (
     <>
-      <span className="thumb" aria-hidden="true">
-        {video.thumbnail_url ? <img src={video.thumbnail_url} alt="" /> : '▶'}
-        <small>{formatDuration(video.duration_sec)}</small>
-      </span>
-      <span className="grow">
-        <span className="strong">{video.title}</span>
-        <br />
-        <span className="muted">{video.author_name} · {formatDate(video.created_at)}</span>
-        <br />
+      <Thumb kind="video" wide>
+        {video.thumbnail_url ? <img src={video.thumbnail_url} alt="" /> : <Play />}
+        <small className="absolute end-1 bottom-1 rounded bg-black/60 px-1 font-mono text-[10px] text-white">{formatDuration(video.duration_sec)}</small>
+      </Thumb>
+      <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
+        <span className="font-semibold">{video.title}</span>
+        <span className="text-sm text-muted-foreground">{video.author_name} · {formatDate(video.created_at)}</span>
         <StatusPill video={video} languageName={languageName} />
       </span>
     </>
   );
-  if (video.status !== 'ready') return <div className="list-item">{body}</div>;
-  return <Link className="list-item" to={`/videos/${video.id}`}>{body}</Link>;
+  if (video.status !== 'ready') return <ListItem>{body}</ListItem>;
+  return <ListItem asChild><Link to={`/videos/${video.id}`}>{body}</Link></ListItem>;
 }

@@ -3,6 +3,10 @@ import type { DocumentType, Machine } from '../../../../api';
 import { Button } from '../../../../components/Button';
 import { ErrorMessage } from '../../../../components/ErrorMessage';
 import { Field } from '../../../../components/Field';
+import { Notice } from '../../../../components/Notice';
+import { Card } from '../../../../components/ui/card';
+import { Input } from '../../../../components/ui/input';
+import { NativeSelect, NativeSelectOption } from '../../../../components/ui/native-select';
 import { ProgressBar } from '../../../../components/ProgressBar';
 import { DOCUMENT_TYPE_LABEL } from '../../../../lib/labels';
 import type { DocumentUploadIn } from '../../api';
@@ -37,27 +41,29 @@ export function DocumentUploadForm({ machines, defaultMachineId, state, onSubmit
   }
 
   return (
-    <form className="card stack" onSubmit={submit} noValidate aria-label={t('Doküman ekle')}>
-      <div className="label">{t('Doküman ekle')}</div>
+    <form onSubmit={submit} noValidate aria-label={t('Doküman ekle')}>
+      <Card className="gap-4">
+      <div className="font-display text-lg font-semibold tracking-wide text-steel uppercase">{t('Doküman ekle')}</div>
       <Field label={t('Makine')} htmlFor="doc-machine">
-        <select id="doc-machine" value={machineId} onChange={(e) => setMachineId(e.target.value)}>
-          <option value="">{t('Seçin')}</option>
-          {machines.map((m) => <option key={m.id} value={m.id}>{m.code} · {m.name}</option>)}
-        </select>
+        <NativeSelect id="doc-machine" value={machineId} onChange={(e) => setMachineId(e.target.value)}>
+          <NativeSelectOption value="">{t('Seçin')}</NativeSelectOption>
+          {machines.map((m) => <NativeSelectOption key={m.id} value={m.id}>{m.code} · {m.name}</NativeSelectOption>)}
+        </NativeSelect>
       </Field>
       <Field label={t('Tür')} htmlFor="doc-type">
-        <select id="doc-type" value={type} onChange={(e) => setType(e.target.value as DocumentType)}>
-          {TYPES.map(([k, label]) => <option key={k} value={k}>{t(label)}</option>)}
-        </select>
+        <NativeSelect id="doc-type" value={type} onChange={(e) => setType(e.target.value as DocumentType)}>
+          {TYPES.map(([k, label]) => <NativeSelectOption key={k} value={k}>{t(label)}</NativeSelectOption>)}
+        </NativeSelect>
       </Field>
-      <Field label={t('Başlık')} htmlFor="doc-title"><input id="doc-title" value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+      <Field label={t('Başlık')} htmlFor="doc-title"><Input id="doc-title" value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
       <Field label={t('Dosya (PDF, Word, Excel, CSV, metin veya fotoğraf)')} htmlFor="doc-file" error={error}>
-        <input id="doc-file" type="file" accept={DOCUMENT_ACCEPT} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+        <Input id="doc-file" className="pt-2" type="file" accept={DOCUMENT_ACCEPT} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
       </Field>
       {state.status === 'sending' && <ProgressBar fraction={state.progress} label={t('Yükleniyor')} />}
       {state.status === 'error' && <ErrorMessage error={state.error} />}
-      {state.status === 'done' && <output><span className="pill ok">{t('Yüklendi')}</span>{' '}{t('Metin çıkarma ve özet arka planda başladı.')}</output>}
+      {state.status === 'done' && <Notice tone="ok" title={t('Yüklendi')}>{t('Metin çıkarma ve özet arka planda başladı.')}</Notice>}
       <Button type="submit" loading={state.status === 'sending'}>{t('Yükle')}</Button>
+      </Card>
     </form>
   );
 }

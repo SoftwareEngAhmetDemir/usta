@@ -1,5 +1,8 @@
 import { useState } from 'react';
+import { Plus, Search } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
+import { Button } from '../../components/Button';
+import { Input } from '../../components/ui/input';
 import type { AdminMachineList } from '../../api';
 import { useApi } from '../../api';
 import { AsyncView } from '../../components/AsyncView';
@@ -28,17 +31,20 @@ export function AdminMachinesPage() {
     <>
       <PageTitle title={t('Yönetim')} />
       <AdminTabs />
-      <Link className="btn" data-variant="secondary" to="/machines/new">{t('+ Makine ekle')}</Link>
-      <div className="field">
-        <label className="sr-only" htmlFor="admin-q">{t('Makine ara')}</label>
-        <input id="admin-q" type="search" placeholder={t('Makine adıyla ara…')} value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="relative flex-1">
+          <label className="sr-only" htmlFor="admin-q">{t('Makine ara')}</label>
+          <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <Input id="admin-q" type="search" className="bg-card ps-9" placeholder={t('Makine adıyla ara…')} value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        <Button asChild variant="secondary" className="sm:h-11 sm:w-auto"><Link to="/machines/new"><Plus aria-hidden="true" />{t('Makine ekle')}</Link></Button>
       </div>
       <AsyncView state={state} onRetry={reload}>
         {(data) => (
           <>
             <StatsTiles stats={data.stats} />
             <MachineTable rows={data.machines} />
-            <div className="tiles" style={{ alignItems: 'start' }}>
+            <div className="grid items-start gap-4 md:grid-cols-2">
               <DocumentUploadForm machines={data.machines} defaultMachineId={preset} state={doc.state} onSubmit={(b) => void doc.submit(b).then(after)} />
               <ExternalVideoForm machines={data.machines} defaultMachineId={preset} state={ext.state} onSubmit={(b) => void ext.submit(b).then(after)} />
             </div>

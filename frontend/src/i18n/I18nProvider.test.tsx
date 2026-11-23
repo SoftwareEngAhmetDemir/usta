@@ -55,6 +55,20 @@ describe('I18nProvider', () => {
     expect(screen.queryByText('loading')).not.toBeInTheDocument();
   });
 
+  it('translates quiet texts (live alerts, errors) without showing the page as loading', async () => {
+    function Toast() {
+      const t = useT();
+      const loading = useUiLoading();
+      return <><p>{t('Yeni soru geldi', { quiet: true })}</p>{loading && <p>loading</p>}</>;
+    }
+    const request = holdFetch();
+    render(<I18nProvider language="ar"><Toast /></I18nProvider>);
+    await new Promise((r) => setTimeout(r, 60)); // the batch has been sent
+    expect(screen.queryByText('loading')).not.toBeInTheDocument();
+    request.answer({ language: 'ar', dir: 'rtl', texts: { 'Yeni soru geldi': 'وصل سؤال جديد' } });
+    expect(await screen.findByText('وصل سؤال جديد')).toBeInTheDocument();
+  });
+
   it('keeps Turkish when the backend cannot translate', async () => {
     const { calls } = mockApi({}); // 404 for /ui-texts
     render(<I18nProvider language="en"><Header /></I18nProvider>);

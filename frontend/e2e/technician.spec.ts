@@ -13,8 +13,8 @@ test('technician records a maintenance job and sees it on top of the history (KA
   await page.getByRole('button', { name: 'Bakımı kaydet' }).click();
   await expect(page).toHaveURL(/\/m\/2$/);
   await expect(page.getByText('Kaydedildi')).toBeVisible();
-  const first = page.locator('.tl-item').first();
-  await expect(first).toHaveClass(/new/);
+  const first = page.getByRole('list').filter({ hasText: 'Hidrolik yağ tamamlandı.' }).getByRole('listitem').first();
+  await expect(first).toHaveAttribute('aria-current', 'true'); // the new record, highlighted
   await expect(first).toContainText('Hidrolik yağ tamamlandı.');
   await expect(first).toContainText('Yetkili');
 });

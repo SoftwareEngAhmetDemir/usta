@@ -1,7 +1,9 @@
-import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import { MessageCircleQuestion } from 'lucide-react';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import type { MachinePage as MachinePageData } from '../../api';
 import { useAction, useApi } from '../../api';
 import { AsyncView } from '../../components/AsyncView';
+import { CtaLink } from '../../components/CtaLink';
 import { PageTitle } from '../../components/PageTitle';
 import { archiveMachine } from './api';
 import { ArchiveMachine } from './components/ArchiveMachine';
@@ -40,10 +42,7 @@ export function MachinePage() {
             <MachineHeader machine={page.machine} />
             <UstaList ustas={page.ustas} />
             {page.actions.ask && (
-              <Link className="cta" to={`/m/${page.machine.id}/ask`}>
-                <span className="ic" aria-hidden="true">?</span>
-                <span className="grow"><b>{t('Makineye sor')}</b><small>{t('Cevap videolardan ve dokümanlardan, kaynağıyla gelir')}</small></span>
-              </Link>
+              <CtaLink to={`/m/${page.machine.id}/ask`} icon={MessageCircleQuestion} title={t('Makineye sor')} hint={t('Cevap videolardan ve dokümanlardan, kaynağıyla gelir')} />
             )}
             <VideoList machineId={page.machine.id} videos={page.videos} external={page.external_videos} languageName={languageName} canRecord={page.actions.record_video} />
             <DocumentList machineId={page.machine.id} documents={page.documents} canUpload={page.actions.upload_document} />

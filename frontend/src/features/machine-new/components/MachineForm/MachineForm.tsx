@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react';
 import type { MachineIn } from '../../../../api';
 import { Button } from '../../../../components/Button';
 import { Field } from '../../../../components/Field';
+import { Card } from '../../../../components/ui/card';
+import { Input } from '../../../../components/ui/input';
 import { useT } from '../../../../i18n';
 
 const FIELDS: { key: keyof MachineIn; label: string; placeholder: string }[] = [
@@ -28,14 +30,16 @@ export function MachineForm({ pending, onSubmit }: { pending: boolean; onSubmit:
   }
 
   return (
-    <form className="card stack" onSubmit={submit} noValidate aria-label={t('Makine ekle')}>
+    <form onSubmit={submit} noValidate aria-label={t('Makine ekle')}>
+      <Card className="gap-4">
       {FIELDS.map((f) => (
         <Field key={f.key} label={t(f.label)} htmlFor={`machine-${f.key}`} error={f.key === 'name' ? error : undefined}>
-          <input id={`machine-${f.key}`} placeholder={f.placeholder && t(f.placeholder)} value={values[f.key]} autoCapitalize={f.key === 'code' ? 'characters' : undefined}
+          <Input id={`machine-${f.key}`} className={f.key === 'code' ? 'font-mono uppercase' : undefined} placeholder={f.placeholder && t(f.placeholder)} value={values[f.key]} autoCapitalize={f.key === 'code' ? 'characters' : undefined}
             onChange={(e) => setValues({ ...values, [f.key]: e.target.value })} />
         </Field>
       ))}
       <Button type="submit" loading={pending}>{t('Makineyi ekle')}</Button>
+      </Card>
     </form>
   );
 }

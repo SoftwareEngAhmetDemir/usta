@@ -7,7 +7,7 @@ test('usta gets a live alert, opens the question and answers (KAN-66, KAN-63)', 
   await page.goto('/usta');
   await expect(page.getByRole('heading', { name: /İşçilerden sorular/ })).toContainText('1 açık');
   api.pushAlert(fx.alertList.items[0]!);
-  const toast = page.locator('.toast');
+  const toast = page.locator('[data-slot=toast]');
   await expect(toast).toContainText('Yeni soru');
   await toast.click();
   await expect(page).toHaveURL(/\/usta\/questions\/51$/);
@@ -36,7 +36,7 @@ test('usta adds a new machine from home, then removes it (KAN-27)', async ({ pag
   const created = { ...fx.machinePage, machine: { ...fx.machinePage.machine, id: 12, code: 'CNC-7', name: 'CNC Torna' }, actions: { ...fx.machinePage.actions, archive: true, qr: true } };
   const api = await mockBackend(page, { role: 'usta', routes: { 'POST /machines': { status: 201, body: { id: 12 } }, 'GET /machines/12': created, 'POST /machines/12/archive': { status: 204, body: null } } });
   await page.goto('/usta');
-  await page.getByRole('link', { name: '+ Makine ekle' }).click();
+  await page.getByRole('link', { name: 'Makine ekle' }).click();
   await page.getByLabel(/Makine kodu/).fill('CNC-7');
   await page.getByLabel('Makine adı').fill('CNC Torna');
   await page.getByRole('button', { name: 'Makineyi ekle' }).click();

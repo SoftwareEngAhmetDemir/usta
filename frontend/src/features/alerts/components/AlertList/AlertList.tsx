@@ -1,24 +1,30 @@
+import { Bell } from 'lucide-react';
 import type { Alert } from '../../../../api';
 import { EmptyState } from '../../../../components/EmptyState';
+import { ListItem } from '../../../../components/ListItem';
+import { Thumb } from '../../../../components/Thumb';
+import { Card } from '../../../../components/ui/card';
 import { formatDateTime } from '../../../../lib/format';
 import { useT } from '../../../../i18n';
 
 export function AlertList({ items, onOpen }: { items: Alert[]; onOpen: (alert: Alert) => void }) {
   const t = useT();
-  if (items.length === 0) return <div className="card"><EmptyState message={t('Bildirim yok.')} /></div>;
+  if (items.length === 0) return <EmptyState message={t('Bildirim yok.')} />;
   return (
-    <div className="card">
+    <Card className="gap-0">
       {items.map((a) => (
-        <button key={a.id} type="button" className="list-item" onClick={() => onOpen(a)}>
-          <span className="thumb alert" aria-hidden="true">🔔</span>
-          <span className="grow">
-            <span className={a.read ? undefined : 'unread'}>{t(a.text)}</span>
-            {!a.read && <span className="sr-only">{' '}{t('(okunmamış)')}</span>}
-            <br />
-            <span className="muted">{formatDateTime(a.created_at)}</span>
-          </span>
-        </button>
+        <ListItem key={a.id} asChild>
+          <button type="button" onClick={() => onOpen(a)}>
+            <Thumb kind={a.read ? 'doc' : 'alert'}><Bell /></Thumb>
+            <span className="min-w-0 flex-1">
+              <span data-unread={!a.read || undefined} className="block text-sm data-unread:font-semibold">{t(a.text, { quiet: true })}</span>
+              {!a.read && <span className="sr-only"> {t('(okunmamış)')}</span>}
+              <span className="text-xs text-muted-foreground">{formatDateTime(a.created_at)}</span>
+            </span>
+            {!a.read && <span className="size-2.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />}
+          </button>
+        </ListItem>
       ))}
-    </div>
+    </Card>
   );
 }

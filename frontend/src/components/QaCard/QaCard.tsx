@@ -1,6 +1,8 @@
+import { Paperclip, Play } from 'lucide-react';
 import { Link } from 'react-router';
 import type { QaEntry } from '../../api';
 import { formatDate } from '../../lib/format';
+import { Chip } from '../Chip';
 import { Localized } from '../Localized';
 import { useT } from '../../i18n';
 
@@ -9,22 +11,28 @@ export function QaCard({ entry, showMachine = false }: { entry: QaEntry; showMac
   const t = useT();
   const hasOriginal = entry.original_question !== null || entry.original_answer !== null;
   return (
-    <article className="list-item" style={{ display: 'block' }}>
-      <div className="strong">{t('S:')}{' '}<Localized value={entry.question} /></div>
-      {entry.answer && <div>{t('C:')}{' '}<Localized value={entry.answer} /></div>}
-      <div className="row wrap" style={{ marginTop: 4 }}>
-        {entry.answer_video_id !== null && <Link className="chip" to={`/videos/${entry.answer_video_id}`}>{t('▶ Cevap videosu')}</Link>}
-        {entry.answer_file_url && <a className="chip" href={entry.answer_file_url} target="_blank" rel="noreferrer">{t('📎 Ek dosya')}</a>}
-      </div>
-      <div className="muted">
+    <article className="flex flex-col gap-1.5 border-t py-3 first:border-t-0 first:pt-0 last:pb-0">
+      <div className="font-semibold">{t('S:')} <Localized value={entry.question} /></div>
+      {entry.answer && <div>{t('C:')} <Localized value={entry.answer} /></div>}
+      {(entry.answer_video_id !== null || entry.answer_file_url) && (
+        <div className="flex flex-wrap gap-2">
+          {entry.answer_video_id !== null && (
+            <Chip asChild><Link to={`/videos/${entry.answer_video_id}`}><Play aria-hidden="true" />{t('Cevap videosu')}</Link></Chip>
+          )}
+          {entry.answer_file_url && (
+            <Chip asChild><a href={entry.answer_file_url} target="_blank" rel="noreferrer"><Paperclip aria-hidden="true" />{t('Ek dosya')}</a></Chip>
+          )}
+        </div>
+      )}
+      <div className="text-sm text-muted-foreground [&_a]:text-steel [&_a]:underline-offset-2 hover:[&_a]:underline">
         {showMachine && <><Link to={`/m/${entry.machine_id}`}>{entry.machine_name}</Link> · </>}
         <Link to={`/ustas/${entry.usta.id}`}>{entry.usta.name}</Link> · {formatDate(entry.answered_at)}
       </div>
       {hasOriginal && (
-        <details>
-          <summary className="muted">{t('Orijinalini göster')}</summary>
-          {entry.original_question && <p style={{ margin: '4px 0' }}>{t('S:')}{' '}<Localized value={entry.original_question} /></p>}
-          {entry.original_answer && <p style={{ margin: '4px 0' }}>{t('C:')}{' '}<Localized value={entry.original_answer} /></p>}
+        <details className="text-sm">
+          <summary className="cursor-pointer text-muted-foreground">{t('Orijinalini göster')}</summary>
+          {entry.original_question && <p className="my-1">{t('S:')} <Localized value={entry.original_question} /></p>}
+          {entry.original_answer && <p className="my-1">{t('C:')} <Localized value={entry.original_answer} /></p>}
         </details>
       )}
     </article>

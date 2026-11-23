@@ -3,6 +3,7 @@ import { useApi } from '../../api';
 import { AsyncView } from '../../components/AsyncView';
 import { EmptyState } from '../../components/EmptyState';
 import { PageTitle } from '../../components/PageTitle';
+import { Card } from '../../components/ui/card';
 import { MyQuestionItem } from './components/MyQuestionItem';
 import { useT } from '../../i18n';
 
@@ -14,11 +15,11 @@ export function MyQuestionsPage() {
     <>
       <PageTitle title={t('Sorularım')} back />
       <AsyncView state={state} onRetry={reload}>
-        {(items) => (
-          <div className="card">
-            {items.length === 0 ? <EmptyState message={t('Henüz ustaya soru sormadınız.')} /> : items.map((q) => <MyQuestionItem key={q.id} item={q} />)}
-          </div>
-        )}
+        {(items) =>
+          items.length === 0 ? <EmptyState message={t('Henüz ustaya soru sormadınız.')} /> : (
+            <Card className="gap-0">{items.map((q) => <MyQuestionItem key={q.id} item={q} />)}</Card>
+          )
+        }
       </AsyncView>
     </>
   );

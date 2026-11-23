@@ -1,4 +1,7 @@
+import { Video } from 'lucide-react';
 import { Link } from 'react-router';
+import { Button } from '../../../../components/Button';
+import { Card } from '../../../../components/ui/card';
 import type { ExternalVideo, VideoSummary } from '../../../../api';
 import { EmptyState } from '../../../../components/EmptyState';
 import { SectionTitle } from '../../../../components/SectionTitle';
@@ -16,21 +19,23 @@ interface Props {
 
 export function VideoList({ machineId, videos, external, languageName, canRecord }: Props) {
   const t = useT();
-  const recordLink = canRecord ? <Link className="btn" data-size="small" to={`/record?machine=${machineId}`}>{t('Video çek')}</Link> : undefined;
+  const recordLink = canRecord ? (
+    <Button asChild size="small"><Link to={`/record?machine=${machineId}`}><Video aria-hidden="true" />{t('Video çek')}</Link></Button>
+  ) : undefined;
   return (
-    <section aria-labelledby="videos-title" className="stack">
+    <section aria-labelledby="videos-title" className="flex flex-col gap-2">
       <SectionTitle id="videos-title" title={t('Videolar')} extra={videos.length + external.length} />
-      <div className="card">
-        {videos.length + external.length === 0 ? (
-          <EmptyState message={t('Henüz video yok.')} action={recordLink} />
-        ) : (
-          <>
+      {videos.length + external.length === 0 ? (
+        <EmptyState message={t('Henüz video yok.')} action={recordLink} />
+      ) : (
+        <>
+          <Card className="gap-0">
             {videos.map((v) => <VideoItem key={v.id} video={v} languageName={languageName} />)}
             {external.map((v) => <ExternalVideoItem key={`ext-${v.id}`} video={v} />)}
-            {recordLink && <div style={{ marginTop: 8 }}>{recordLink}</div>}
-          </>
-        )}
-      </div>
+          </Card>
+          {recordLink && <div>{recordLink}</div>}
+        </>
+      )}
     </section>
   );
 }

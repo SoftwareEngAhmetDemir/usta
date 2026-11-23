@@ -28,7 +28,7 @@ export function Player({ title, audio, subtitle, seek, onTime }: Props) {
   }, [subtitle]);
 
   return (
-    <div className="player">
+    <div className="overflow-hidden rounded-xl bg-[#0b1014] shadow-md">
       <video
         ref={ref}
         key={audio.stream_url}
@@ -37,6 +37,7 @@ export function Player({ title, audio, subtitle, seek, onTime }: Props) {
         playsInline
         preload="metadata"
         aria-label={title}
+        className="block aspect-video w-full bg-black"
         onLoadedMetadata={(e) => {
           e.currentTarget.currentTime = resumeAt.current;
         }}

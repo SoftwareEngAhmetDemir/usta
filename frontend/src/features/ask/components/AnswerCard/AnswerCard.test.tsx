@@ -21,8 +21,8 @@ it('AnswerCard shows the answer with one card per source', () => {
 it('AnswerCard sends 👍 / 👎 feedback once', async () => {
   const { calls } = mockApi({ 'POST /ask/301/feedback': null });
   show();
-  await userEvent.click(screen.getByRole('button', { name: '👎 Hayır' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Hayır' }));
   expect(await screen.findByText('Teşekkürler, geri bildiriminiz kaydedildi.')).toBeInTheDocument();
   expect(calls.find((c) => c.path === '/ask/301/feedback')?.body).toEqual({ feedback: 'not_helpful' });
-  expect(screen.queryByRole('button', { name: '👍 Evet' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Evet' })).not.toBeInTheDocument();
 });

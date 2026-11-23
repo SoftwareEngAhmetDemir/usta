@@ -20,7 +20,8 @@ describe('MaintenanceTimeline', () => {
     expect(items[0]).toHaveTextContent('İş 1');
     expect(items[0]).toHaveTextContent('Forklift 3 · 14.11.2026 09:40');
     expect(items[0]).toHaveTextContent('Yapan: Emre K. Yetkili · Açan: Ali Usta');
-    expect(items[0]).toHaveClass('new');
+    expect(items[0]).toHaveAttribute('aria-current', 'true'); // shown highlighted
+    expect(items[1]).not.toHaveAttribute('aria-current');
     expect(items[1]).not.toHaveTextContent('Yetkili');
     expect(screen.getByAltText('Bakım fotoğrafı')).toHaveAttribute('src', '/uploads/p.jpg');
     expect(screen.getByLabelText('Bakım videosu')).toHaveAttribute('src', '/uploads/v.mp4');

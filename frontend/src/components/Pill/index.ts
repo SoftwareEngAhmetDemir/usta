@@ -1,2 +1,3 @@
 export { Pill } from './Pill';
-export type { PillTone } from './Pill';
+export { TONE_CLASS } from './tones';
+export type { PillTone } from './tones';

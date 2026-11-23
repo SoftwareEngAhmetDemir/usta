@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Video } from 'lucide-react';
 import type { InboxQuestion, MachineHit, UstaProfile } from '../../api';
 import { useApi } from '../../api';
 import { AsyncView } from '../../components/AsyncView';
+import { CtaLink } from '../../components/CtaLink';
+import { Card } from '../../components/ui/card';
 import { EmptyState } from '../../components/EmptyState';
 import { QaCard } from '../../components/QaCard';
 import { SectionTitle } from '../../components/SectionTitle';
@@ -27,29 +29,26 @@ export function UstaHomePage() {
 
   return (
     <>
-      <div className="card stack">
-        <div className="strong">{t('Merhaba')}{' '}{me.name}</div>
+      <Card>
+        <div className="font-display text-2xl leading-none font-semibold text-steel">{t('Merhaba')} {me.name}</div>
         <AsyncView state={profile.state}>{(p) => <MachineChips machines={p.machines} />}</AsyncView>
-      </div>
+      </Card>
       <MachineSearch query={q} onQueryChange={setQ} results={search.state} onRetry={search.reload} />
-      <Link className="cta" to="/record">
-        <span className="ic" aria-hidden="true">●</span>
-        <span className="grow"><b>{t('Video çek')}</b><small>{t('Bir makineyi veya bakım işini anlat')}</small></span>
-      </Link>
+      <CtaLink to="/record" icon={Video} title={t('Video çek')} hint={t('Bir makineyi veya bakım işini anlat')} />
       <AsyncView state={inbox.state} onRetry={inbox.reload}>
         {(items) => (
           <>
             <SectionTitle title={t('İşçilerden sorular')} extra={`${items.length} ${t('açık')}`} />
-            <div className="card"><InboxList items={items} /></div>
+            <InboxList items={items} />
           </>
         )}
       </AsyncView>
       <SectionTitle title={t('Cevapladıklarım')} />
       <AsyncView state={profile.state} onRetry={profile.reload}>
         {(p) => (
-          <div className="card">
-            {p.answered.length === 0 ? <EmptyState message={t('Henüz cevap yok.')} /> : p.answered.map((q) => <QaCard key={q.id} entry={q} showMachine />)}
-          </div>
+          p.answered.length === 0 ? <EmptyState message={t('Henüz cevap yok.')} /> : (
+            <Card className="gap-0">{p.answered.map((q) => <QaCard key={q.id} entry={q} showMachine />)}</Card>
+          )
         )}
       </AsyncView>
     </>

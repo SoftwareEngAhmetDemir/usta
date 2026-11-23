@@ -58,7 +58,7 @@ describe('alerts (KAN-66)', () => {
     app();
     await waitFor(() => expect(FakeSocket.all).toHaveLength(1));
     act(() => FakeSocket.all[0]?.onmessage?.({ data: JSON.stringify(unread) }));
-    expect(await screen.findByRole('button', { name: /Yeni soru · Forklift 3/ })).toHaveClass('toast');
+    expect(await screen.findByRole('button', { name: /Yeni soru · Forklift 3/ })).toHaveAttribute('data-slot', 'toast');
     await waitFor(() => expect(calls.filter((c) => c.path === '/alerts')).toHaveLength(2));
   });
 
