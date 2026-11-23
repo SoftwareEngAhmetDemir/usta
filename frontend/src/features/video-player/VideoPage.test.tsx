@@ -21,6 +21,20 @@ describe('VideoPage', () => {
     expect(screen.getByRole('link', { name: 'Plazma Kesim Makinesi' })).toHaveAttribute('href', '/m/1');
   });
 
+  it('defaults both menus to the site language and asks for it once when nobody has prepared it', async () => {
+    const prep = { language: 'ar', language_name: 'العربية', steps: [{ key: 'translate', label: 'Çeviri', status: 'running' }] };
+    const { calls } = mockApi({
+      'GET /auth/me': me('worker', 'ar'),
+      'GET /videos/1': { ...videoDetail, default_subtitle_language: 'ar', default_audio_language: 'ar' },
+      'POST /videos/1/languages/ar': prep,
+    });
+    show();
+    expect(await screen.findByRole('button', { name: 'Altyazı' })).toHaveTextContent('العربية');
+    expect(screen.getByRole('button', { name: 'Ses' })).toHaveTextContent('العربية');
+    expect(screen.getByLabelText('Meme ve elektrot değişimi')).toHaveAttribute('src', '/uploads/videos/1/original.mp4'); // until ready
+    await waitFor(() => expect(calls.filter((c) => c.method === 'POST' && c.path === '/videos/1/languages/ar')).toHaveLength(1));
+  });
+
   it('switches audio to another stored language (KAN-56)', async () => {
     mockApi({ 'GET /auth/me': me('worker'), 'GET /videos/1': videoDetail });
     show();

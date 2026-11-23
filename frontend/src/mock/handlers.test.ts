@@ -74,7 +74,9 @@ describe('mock backend', () => {
     call(db, 'POST', '/videos/1/languages/ar');
     expect((call(db, 'GET', '/videos/1').body as { preparation: unknown }).preparation).not.toBeNull();
     for (let i = 0; i < 5; i++) call(db, 'GET', '/videos/1');
+    const alertsBefore = db.alerts.usta.length;
     expect(call(db, 'GET', '/videos/1').body).toMatchObject({ preparation: null, default_audio_language: 'ar' });
+    expect(db.alerts.usta).toHaveLength(alertsBefore); // a prepared language sends no notification
   });
 
   it('searches admin machines by name', () => {

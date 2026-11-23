@@ -190,10 +190,10 @@ async def detail(db: AsyncSession, video: Video, machine_name: str, viewer_lang:
     track_list = tracks(video, steps)
     mine = next((t for t in track_list if t.language == viewer_lang), None)
     original = track_list[0]
-    if mine and mine.subtitles == "ready":
-        default_subtitles: str | None = viewer_lang
-    else:
-        default_subtitles = original.language if original.subtitles == "ready" else None
+    # The viewer's site language is the default even before it is prepared (the player asks for it and plays the
+    # original meanwhile); audio only where a voice exists for it.
+    default_subtitles = viewer_lang if mine else (original.language if original.subtitles == "ready" else None)
+    default_audio = viewer_lang if mine and mine.audio != "unavailable" else video.language
     viewer_steps = steps.get(viewer_lang, []) if viewer_lang != video.language else []
     preparing = bool(viewer_steps) and not all(s.status == StepStatus.done for s in viewer_steps)
     transcript_lang = viewer_lang if _done(viewer_steps, "translate") else video.language
@@ -208,7 +208,7 @@ async def detail(db: AsyncSession, video: Video, machine_name: str, viewer_lang:
         status=video.status,
         tracks=track_list,
         default_subtitle_language=default_subtitles,
-        default_audio_language=viewer_lang if mine and mine.audio == "ready" else video.language,
+        default_audio_language=default_audio,
         preparation=preparation(viewer_lang, viewer_steps) if preparing else None,
         transcript=[
             TranscriptSegmentOut(start_sec=s.start_sec, end_sec=s.end_sec, text=s.text)

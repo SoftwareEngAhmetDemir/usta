@@ -19,7 +19,7 @@ from app.ai.interfaces import AIUnavailableError
 from app.alerts.service import notify
 from app.context import AppContext
 from app.core import storage
-from app.core.languages import VOICED, lang_name
+from app.core.languages import VOICED
 from app.jobs.queue import JobFailedError, Payload, Progress
 from app.machines.models import Machine
 from app.search.chunking import TimedText, chunk_video
@@ -408,17 +408,12 @@ async def _set(db: AsyncSession, step_id: int, status: StepStatus, error: str | 
 async def _finished(
     ctx: AppContext, db: AsyncSession, video: Video, pipeline: str, user_id: int | None, *, ok: bool
 ) -> None:
-    if user_id is None:
+    # Only the uploader hears about their own upload. A language preparation sends nothing: the player starts it
+    # by itself when a video is opened in a new language and switches when it is ready (user's decision 2026-11-23).
+    if user_id is None or pipeline != UPLOAD_PIPELINE:
         return
-    path = f"/videos/{video.id}"
-    if pipeline == UPLOAD_PIPELINE:
-        text = (
-            f"“{video.title}” videosu hazır." if ok else f"“{video.title}” videosu işlenirken bir adım başarısız oldu."
-        )
-    else:
-        name = lang_name(pipeline)
-        text = f"“{video.title}” videosu artık {name} hazır." if ok else f"“{video.title}” {name} hazırlanamadı."
-    await notify(db, ctx.hub, [user_id], text, path)
+    text = f"“{video.title}” videosu hazır." if ok else f"“{video.title}” videosu işlenirken bir adım başarısız oldu."
+    await notify(db, ctx.hub, [user_id], text, f"/videos/{video.id}")
 
 
 async def start(ctx: AppContext, video_id: int, pipeline: str) -> int:

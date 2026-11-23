@@ -146,6 +146,9 @@ async def test_language_prepared_on_demand_once_then_dubbed_with_both_tracks(
     vid = (await _upload(await client_as(usta_user), machine.id, sample_video)).id
     await ctx.jobs.drain(ctx)
     arabic = await client_as(await make_user(language="ar"))
+    before = (await arabic.get(f"/api/videos/{vid}")).json()  # the site language is the default before it is prepared
+    assert before["default_subtitle_language"] == "ar" and before["default_audio_language"] == "ar"
+    assert next(t for t in before["tracks"] if t["language"] == "ar")["subtitles"] == "none"
 
     prep = (await arabic.post(f"/api/videos/{vid}/languages/ar")).json()
     assert prep["language_name"] == "العربية"
@@ -169,7 +172,7 @@ async def test_language_prepared_on_demand_once_then_dubbed_with_both_tracks(
     assert detail["transcript_language"] == "ar" and detail["transcript"][0]["text"] == "[ar] Önce makineyi kapatın."
     page = (await arabic.get(f"/api/machines/{machine.id}")).json()
     assert page["videos"][0]["availability"] == "dubbed"
-    assert "artık العربية hazır" in (await arabic.get("/api/alerts")).json()["items"][0]["text"]
+    assert (await arabic.get("/api/alerts")).json()["items"] == []  # a prepared language is no notification
 
 
 async def test_a_language_without_a_voice_gets_subtitles_only(
@@ -182,6 +185,8 @@ async def test_a_language_without_a_voice_gets_subtitles_only(
     vid = (await _upload(await client_as(usta_user), machine.id, sample_video)).id
     await ctx.jobs.drain(ctx)
     persian = await client_as(await make_user(language="fa"))
+    before = (await persian.get(f"/api/videos/{vid}")).json()  # not prepared yet; no voice: audio stays original
+    assert before["default_subtitle_language"] == "fa" and before["default_audio_language"] == "tr"
     prep = (await persian.post(f"/api/videos/{vid}/languages/fa")).json()
     assert [s["key"] for s in prep["steps"]] == ["translate", "subtitles"]
     await ctx.jobs.drain(ctx)

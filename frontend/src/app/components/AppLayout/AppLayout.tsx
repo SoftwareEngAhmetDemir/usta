@@ -47,7 +47,7 @@ export function AppLayout() {
       <AlertToast alert={toast} onOpen={open} />
       <main className="flex flex-1 flex-col gap-4 px-4 pt-4 pb-8">
         <ErrorMessage error={lang.error} />
-        <LanguageGate languageName={me.language_name}>
+        <LanguageGate languageName={me.language_name} enabled={me.language !== 'tr'}>
           {/* keyed by language: choosing another one re-opens the page, so everything reloads in it */}
           <Outlet key={me.language} />
         </LanguageGate>

@@ -44,8 +44,8 @@ export function VideoPage() {
             <ErrorMessage error={p.error} />
             <TrackPicker
               tracks={v.tracks}
-              audio={p.audio?.language ?? null}
-              subtitle={p.subtitle?.language ?? null}
+              audio={p.audioLang}
+              subtitle={p.subLang === 'off' ? null : p.subLang}
               onAudio={p.chooseAudio}
               onSubtitle={p.chooseSubtitle}
               onRequest={p.request}

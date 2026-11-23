@@ -11,6 +11,7 @@ it('PreparationCard shows the language, steps and retries a failed step', async 
     />,
   );
   expect(screen.getByText('Bu video العربية hazırlanıyor')).toBeInTheDocument();
+  expect(screen.getByText(/kendiliğinden bu dile geçer/)).toBeInTheDocument(); // no notification promised
   await userEvent.click(screen.getByRole('button', { name: 'Tekrar dene' }));
   expect(onRetry).toHaveBeenCalledWith('dub');
 });

@@ -60,14 +60,13 @@ function video(db: MockDb, id: number, me: Me): VideoDetail | null {
   const runningDone = running ? (doneOf(running.language) ?? 0) : 0;
   if (running) {
     db.preparing[`${id}:${running.language}`] = runningDone + 1; // each poll finishes one step
-    if (runningDone + 1 === PREP_LABELS.length) alert(db, me.role, `“${summary.title}” videosu artık ${running.language_name} hazır.`, `/videos/${id}`);
   }
   const mine = tracks.find((t) => t.language === me.language);
   return {
     ...fx.videoDetail, id, title: summary.title, author_name: summary.author_name, created_at: summary.created_at, duration_sec: summary.duration_sec,
     machine_id: page.machine.id, machine_name: page.machine.name, status: summary.status, tracks,
-    default_audio_language: mine?.audio === 'ready' ? me.language : 'tr',
-    default_subtitle_language: mine?.subtitles === 'ready' ? me.language : 'tr',
+    default_audio_language: mine && mine.audio !== 'unavailable' ? me.language : 'tr', // the site language, ready or not
+    default_subtitle_language: mine ? me.language : 'tr',
     preparation: running ? { language: running.language, language_name: running.language_name, steps: steps(PREP_LABELS, runningDone) } : null,
   };
 }

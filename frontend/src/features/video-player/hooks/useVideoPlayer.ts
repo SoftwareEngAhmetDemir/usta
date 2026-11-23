@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { LanguageCode, VideoDetail } from '../../../api';
 import { useApi } from '../../../api';
 import { requestLanguage, retryStep } from '../api';
@@ -12,8 +12,9 @@ function preparing(v: VideoDetail): boolean {
   return v.preparation !== null || v.tracks.some((t) => t.subtitles === 'preparing' || t.audio === 'preparing');
 }
 
-/** Loads the video, follows the backend's default tracks until the viewer picks one, polls while preparing.
- * A requested language becomes the choice at once and plays as soon as it is ready. */
+/** Loads the video, follows the backend's default tracks (the site language) until the viewer picks one, polls
+ * while preparing. The site language is asked for once if nobody has prepared it yet; a requested language is the
+ * choice at once and plays as soon as it is ready (the original plays meanwhile). */
 export function useVideoPlayer(videoId: number) {
   const { state, reload } = useApi<VideoDetail>(`/videos/${videoId}`, (v) => (preparing(v) ? POLL_MS : undefined));
   const [audioChoice, setAudioChoice] = useState<LanguageCode | null>(null);
@@ -22,10 +23,21 @@ export function useVideoPlayer(videoId: number) {
 
   const video = state.status === 'ok' ? state.data : null;
 
-  const audio = video?.tracks.find((t) => t.language === (audioChoice ?? video.default_audio_language) && t.stream_url)
+  const audioLang = audioChoice ?? video?.default_audio_language ?? null;
+  const audio = video?.tracks.find((t) => t.language === audioLang && t.stream_url)
     ?? video?.tracks.find((t) => t.is_original) ?? null;
   const subLang = subChoice ?? video?.default_subtitle_language ?? 'off';
   const subtitle = video?.tracks.find((t) => t.language === subLang && t.subtitle_url) ?? null;
+
+  // The site language (the default) has never been asked for on this video: start it, once.
+  const asked = useRef(false);
+  const siteLang = video?.default_subtitle_language ?? null;
+  const unprepared = video?.status === 'ready' && video.tracks.some((t) => t.language === siteLang && !t.is_original && t.subtitles === 'none');
+  useEffect(() => {
+    if (!unprepared || !siteLang || asked.current) return;
+    asked.current = true;
+    void run(() => requestLanguage(videoId, siteLang));
+  });
 
   async function run(action: () => Promise<unknown>) {
     setError(null);
@@ -42,6 +54,8 @@ export function useVideoPlayer(videoId: number) {
     reload,
     audio,
     subtitle,
+    audioLang, // what the menus show: the choice, even while it is still being prepared
+    subLang,
     error,
     chooseAudio: setAudioChoice,
     chooseSubtitle: setSubChoice,

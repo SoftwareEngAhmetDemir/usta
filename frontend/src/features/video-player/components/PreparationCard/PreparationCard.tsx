@@ -13,7 +13,7 @@ export function PreparationCard({ preparation, onRetry }: { preparation: Prepara
         <Languages className="size-5 text-warning" aria-hidden="true" />
         {t('Bu video')} {preparation.language_name} {t('hazırlanıyor')}
       </div>
-      <p className="m-0 text-sm text-muted-foreground">{t('Hazır olunca bildirim gelecek. Bir kez hazırlanır, sonraki herkes hemen izler.')}</p>
+      <p className="m-0 text-sm text-muted-foreground">{t('Hazır olunca video kendiliğinden bu dile geçer. Bir kez hazırlanır, sonraki herkes hemen izler.')}</p>
       <StepList steps={preparation.steps} onRetry={onRetry} />
     </section></Card>
   );

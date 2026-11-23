@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { request } from './client';
+import { usePageBusy } from './pageBusy';
 
 export type ApiState<T> =
   | { status: 'loading' }
@@ -38,6 +39,7 @@ export function useApi<T>(path: string | null, poll?: Poll<T>): ApiResult<T> {
   }, [path, tick]);
 
   const state: ApiState<T> = stored.path === path ? stored.state : { status: 'loading' };
+  usePageBusy(path !== null && state.status === 'loading');
   const pollMs = typeof poll === 'function' ? (state.status === 'ok' ? poll(state.data) : undefined) : poll;
 
   useEffect(() => {

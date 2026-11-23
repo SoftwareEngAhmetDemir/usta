@@ -1,4 +1,7 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, expect, it } from 'vitest';
 import { I18nProvider, useT } from '../../../i18n';
 import { holdFetch, mockApi } from '../../../test/utils';
@@ -6,24 +9,51 @@ import { LanguageGate } from './LanguageGate';
 
 function Page() {
   const t = useT();
-  return <h1>{t('Makine')}</h1>;
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <h1>{t('Makine')}</h1>
+      <button type="button" onClick={() => setOpen(true)}>{t('Aç')}</button>
+      {open && <p>{t('Ara…')}</p>}
+    </>
+  );
 }
+
+const gate = (language: string) => (
+  <MemoryRouter>
+    <I18nProvider language={language}>
+      <LanguageGate languageName="العربية" enabled={language !== 'tr'}><Page /></LanguageGate>
+    </I18nProvider>
+  </MemoryRouter>
+);
 
 beforeEach(() => localStorage.clear());
 
 it('LanguageGate shows a skeleton instead of the page until its texts are translated', async () => {
   const request = holdFetch();
-  render(<I18nProvider language="ar"><LanguageGate languageName="العربية"><Page /></LanguageGate></I18nProvider>);
+  render(gate('ar'));
   expect(await screen.findByRole('status')).toHaveTextContent('العربية…');
   expect(screen.queryByRole('heading')).not.toBeInTheDocument(); // rendered (so it asks for its texts) but hidden
-  request.answer({ language: 'ar', dir: 'rtl', texts: { Makine: 'آلة' } });
-  expect(await screen.findByRole('heading', { name: 'آلة' })).toBeVisible();
+  request.answer({ language: 'ar', dir: 'rtl', texts: { Makine: 'آلة', Aç: 'فتح' } });
+  expect(await screen.findByRole('heading', { name: 'آلة' }, { timeout: 3000 })).toBeVisible(); // shown after a 150 ms quiet period
   expect(screen.queryByRole('status')).not.toBeInTheDocument();
 });
 
-it('LanguageGate shows the page straight away when nothing needs translating', () => {
+it('LanguageGate never hides a shown page again for texts that appear later (a dropdown, an answer)', async () => {
+  localStorage.setItem('ui-texts:ar', JSON.stringify({ dir: 'rtl', texts: { Makine: 'آلة', Aç: 'فتح' } }));
+  holdFetch(); // the dropdown's text stays on its way
+  render(gate('ar'));
+  const heading = await screen.findByRole('heading', { name: 'آلة' }, { timeout: 3000 });
+  await userEvent.click(screen.getByRole('button', { name: 'فتح' }));
+  await new Promise((r) => setTimeout(r, 250)); // its batch is out
+  expect(heading).toBeVisible();
+  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  expect(screen.getByText('Ara…')).toBeVisible(); // Turkish until its translation arrives
+});
+
+it('LanguageGate is off in Turkish: the page shows straight away', () => {
   mockApi({});
-  render(<I18nProvider language="tr"><LanguageGate languageName="Türkçe"><Page /></LanguageGate></I18nProvider>);
+  render(gate('tr'));
   expect(screen.getByRole('heading', { name: 'Makine' })).toBeVisible();
   expect(screen.queryByRole('status')).not.toBeInTheDocument();
 });
