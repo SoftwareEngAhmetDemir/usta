@@ -8,7 +8,8 @@ import { Card } from '../../components/ui/card';
 import { formatDate } from '../../lib/format';
 import { Player } from './components/Player';
 import { PreparationCard } from './components/PreparationCard';
-import { TrackPicker } from './components/TrackPicker';
+import { CaptionsButton } from './components/CaptionsButton';
+import { PlayerSettings } from './components/PlayerSettings';
 import { Transcript } from './components/Transcript';
 import { useVideoPlayer } from './hooks/useVideoPlayer';
 import { useT } from '../../i18n';
@@ -32,7 +33,26 @@ export function VideoPage() {
             {v.status !== 'ready' || !p.audio ? (
               <Notice tone="waiting" title={t('Video henüz işleniyor. Hazır olunca burada oynatılır.')} />
             ) : (
-              <Player title={v.title} audio={p.audio} subtitle={p.subtitle} seek={seek} onTime={setNow} />
+              <Player
+                title={v.title}
+                audio={p.audio}
+                subtitle={p.subtitle}
+                seek={seek}
+                onTime={setNow}
+                overlay={
+                  <>
+                    <CaptionsButton on={p.subLang !== 'off'} onToggle={p.toggleSubtitles} />
+                    <PlayerSettings
+                      tracks={v.tracks}
+                      audio={p.audioLang}
+                      subtitle={p.subLang === 'off' ? null : p.subLang}
+                      onAudio={p.chooseAudio}
+                      onSubtitle={p.chooseSubtitle}
+                      onRequest={p.request}
+                    />
+                  </>
+                }
+              />
             )}
             <Card className="gap-1">
               <div className="text-lg leading-tight font-semibold">{v.title}</div>
@@ -42,14 +62,6 @@ export function VideoPage() {
             </Card>
             {v.preparation && <PreparationCard preparation={v.preparation} onRetry={(step) => p.retry(v.preparation?.language ?? '', step)} />}
             <ErrorMessage error={p.error} />
-            <TrackPicker
-              tracks={v.tracks}
-              audio={p.audioLang}
-              subtitle={p.subLang === 'off' ? null : p.subLang}
-              onAudio={p.chooseAudio}
-              onSubtitle={p.chooseSubtitle}
-              onRequest={p.request}
-            />
             <Transcript segments={v.transcript} lang={v.transcript_language} dir={v.transcript_dir} currentSec={now} onSeek={jump} />
           </>
         )}

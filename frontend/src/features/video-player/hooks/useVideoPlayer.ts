@@ -39,6 +39,10 @@ export function useVideoPlayer(videoId: number) {
     void run(() => requestLanguage(videoId, siteLang));
   });
 
+  // CC button: off, or back on in the last language shown (else the site language, else the original).
+  const lastSub = useRef<LanguageCode | null>(null);
+  useEffect(() => { if (subLang !== 'off') lastSub.current = subLang; }, [subLang]);
+
   async function run(action: () => Promise<unknown>) {
     setError(null);
     try {
@@ -47,6 +51,12 @@ export function useVideoPlayer(videoId: number) {
     } catch (e: unknown) {
       setError(e);
     }
+  }
+
+  function request(lang: LanguageCode, kind: TrackKind) {
+    if (kind === 'audio') setAudioChoice(lang);
+    else setSubChoice(lang);
+    return run(() => requestLanguage(videoId, lang));
   }
 
   return {
@@ -59,10 +69,14 @@ export function useVideoPlayer(videoId: number) {
     error,
     chooseAudio: setAudioChoice,
     chooseSubtitle: setSubChoice,
-    request: (lang: LanguageCode, kind: TrackKind) => {
-      if (kind === 'audio') setAudioChoice(lang);
-      else setSubChoice(lang);
-      return run(() => requestLanguage(videoId, lang));
+    request,
+    toggleSubtitles: () => {
+      if (subLang !== 'off') return setSubChoice('off');
+      const lang = lastSub.current ?? siteLang ?? video?.tracks.find((t) => t.is_original)?.language;
+      const track = video?.tracks.find((t) => t.language === lang);
+      if (!lang || !track) return;
+      if (track.subtitles === 'none' || track.subtitles === 'failed') return void request(lang, 'subtitles');
+      setSubChoice(lang);
     },
     retry: (lang: LanguageCode, step: string) => run(() => retryStep(videoId, lang, step)),
   };

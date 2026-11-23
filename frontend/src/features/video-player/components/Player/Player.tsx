@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import type { VideoLanguageTrack } from '../../../../api';
 
 interface Props {
@@ -7,10 +7,13 @@ interface Props {
   subtitle: VideoLanguageTrack | null;
   seek: { sec: number; nonce: number }; // a new nonce jumps even to the same second
   onTime: (sec: number) => void;
+  /** Buttons laid over the top corner of the picture (CC, settings). */
+  overlay?: ReactNode;
 }
 
-/** Native player: play/pause, progress, time, full screen. Switching audio keeps the position (KAN-56). */
-export function Player({ title, audio, subtitle, seek, onTime }: Props) {
+/** Native player: play/pause, progress, time, full screen; language buttons on top. Switching audio keeps the
+ * position (KAN-56). */
+export function Player({ title, audio, subtitle, seek, onTime, overlay }: Props) {
   const ref = useRef<HTMLVideoElement>(null);
   const resumeAt = useRef(seek.sec);
 
@@ -28,7 +31,7 @@ export function Player({ title, audio, subtitle, seek, onTime }: Props) {
   }, [subtitle]);
 
   return (
-    <div className="overflow-hidden rounded-xl bg-[#0b1014] shadow-md">
+    <div className="relative rounded-xl bg-[#0b1014] shadow-md">
       <video
         ref={ref}
         key={audio.stream_url}
@@ -37,7 +40,7 @@ export function Player({ title, audio, subtitle, seek, onTime }: Props) {
         playsInline
         preload="metadata"
         aria-label={title}
-        className="block aspect-video w-full bg-black"
+        className="block aspect-video w-full rounded-xl bg-black"
         onLoadedMetadata={(e) => {
           e.currentTarget.currentTime = resumeAt.current;
         }}
@@ -50,6 +53,7 @@ export function Player({ title, audio, subtitle, seek, onTime }: Props) {
           <track key={subtitle.language} kind="subtitles" src={subtitle.subtitle_url} srcLang={subtitle.language} label={subtitle.language_name} default />
         )}
       </video>
+      {overlay && <div className="absolute end-2.5 top-2.5 z-10 flex gap-2">{overlay}</div>}
     </div>
   );
 }
