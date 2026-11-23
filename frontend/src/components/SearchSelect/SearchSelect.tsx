@@ -1,6 +1,7 @@
 import type { FocusEvent } from 'react';
 import type { SearchOption } from './filter';
 import { useSearchSelect } from './useSearchSelect';
+import { useT } from '../../i18n';
 
 interface Props {
   id: string;
@@ -18,6 +19,7 @@ interface Props {
 
 /** Drop-down with a search box: type part of a name (accents optional) to narrow a long list such as languages. */
 export function SearchSelect({ id, label, value, options, onChange, buttonText, hideLabel, alignEnd }: Props) {
+  const t = useT();
   const { open, query, active, shown, trigger, searchBox, optionId, show, close, pick, search, onKeyDown, setActive } =
     useSearchSelect(id, value, options, onChange);
   const current = options.find((o) => o.value === value);
@@ -38,12 +40,12 @@ export function SearchSelect({ id, label, value, options, onChange, buttonText, 
           <input
             ref={searchBox}
             role="combobox"
-            aria-label={`${label}: ara`}
+            aria-label={`${label}: ${t('ara')}`}
             aria-expanded
             aria-controls={listId}
             aria-autocomplete="list"
             aria-activedescendant={shown.length ? optionId(active) : undefined}
-            placeholder="Ara…"
+            placeholder={t('Ara…')}
             value={query}
             onChange={(e) => search(e.target.value)}
             onKeyDown={onKeyDown}
@@ -60,7 +62,7 @@ export function SearchSelect({ id, label, value, options, onChange, buttonText, 
                 {o.hint && o.hint !== o.label && <small>{o.hint}</small>}
               </li>
             ))}
-            {shown.length === 0 && <li className="empty">Sonuç yok</li>}
+            {shown.length === 0 && <li className="empty">{t('Sonuç yok')}</li>}
           </ul>
         </div>
       )}

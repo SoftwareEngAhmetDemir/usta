@@ -1,5 +1,5 @@
-"""Gemini (google-genai SDK; API key or Vertex AI): the LLMClient. The only module that talks to an LLM, and only
-for the final answer and document summaries."""
+"""Gemini (google-genai SDK; API key or Vertex AI): the LLMClient. The only module that talks to an LLM: the final
+answer, its search queries, document summaries and transcript correction."""
 
 import logging
 from typing import TypeVar
@@ -21,6 +21,10 @@ _RETRY = types.HttpOptions(retry_options=types.HttpRetryOptions(attempts=5, init
 
 class _Points(BaseModel):
     points: list[str]
+
+
+class _Queries(BaseModel):
+    queries: list[str]
 
 
 class _Sentence(BaseModel):
@@ -72,6 +76,10 @@ class GeminiLLM:
         return await self._json(
             prompts.answer_user(question, language, sources), AnswerDraft, system=prompts.answer_system(language)
         )
+
+    async def search_queries(self, question: str, languages: list[str], context: str) -> list[str]:
+        result = await self._json(question, _Queries, system=prompts.search_queries(languages, context))
+        return result.queries
 
     async def refine_transcript(self, sentences: list[str], language: str, context: str) -> list[str]:
         """Corrected sentences; a sentence the model skipped stays as it was (the caller also checks each one)."""

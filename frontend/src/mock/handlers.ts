@@ -114,6 +114,8 @@ export function handle(db: MockDb, req: MockRequest): MockResponse {
       db.user = { ...me, language, language_name: fx.languages.find((l) => l.code === language)?.name ?? language };
       return ok(db.user);
     }
+    case 'POST /ui-texts': // no translator in mock mode: the UI stays Turkish, only the direction follows
+      return ok({ language: me.language, dir: fx.languages.find((l) => l.code === me.language)?.dir ?? 'ltr', texts: {} });
     case 'GET /machines/lookup': {
       const code = query.get('code')?.trim() ?? '';
       const link = /\/m\/(\d+)\/?$/.exec(code); // scanned QR URL, like the backend

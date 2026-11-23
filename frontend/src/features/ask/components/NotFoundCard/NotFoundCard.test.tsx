@@ -14,6 +14,6 @@ describe('NotFoundCard', () => {
   });
   it('confirms who received it', () => {
     render(<NotFoundCard question="q" ustas={ustas} sent={{ id: 1, status: 'open', recipients: ustas }} sending={false} onSend={() => {}} />);
-    expect(screen.getByRole('status')).toHaveTextContent('Soru Mehmet Usta kişisine iletildi.');
+    expect(screen.getByRole('status')).toHaveTextContent('Soru iletildi: Mehmet Usta. Cevap gelince bildirim alacaksın.');
   });
 });

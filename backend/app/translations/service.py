@@ -68,6 +68,48 @@ async def translate(db: AsyncSession, translator: Translator, texts: list[str], 
     return [found[source_hash(t, source)] for t in texts]
 
 
+UI_BATCH = 40  # texts per translator call: what finished is stored even if a later batch fails
+UI_FRAME = 'Uygulama düğmesi: "{}"'  # a 1-3 word label alone is ambiguous ("Sor" → "mister", "Aç" → "hungry")
+_QUOTES = " \"'“”„‟«»‹›「」『』"
+
+
+def _framed(text: str) -> str:
+    return UI_FRAME.format(text) if len(text.split()) <= 3 else text
+
+
+def _unframed(text: str, translated: str) -> str:
+    """The label back out of its translated frame ('زر التطبيق: "اسأل"' → 'اسأل'); unframed texts pass through."""
+    if _framed(text) == text:
+        return translated
+    for colon in (":", "："):
+        if colon in translated and (label := translated.split(colon, 1)[1].strip(_QUOTES)):
+            return label
+    return text  # frame lost: show Turkish rather than a wrong label
+
+
+async def ui_texts(db: AsyncSession, translator: Translator, texts: list[str], target: str) -> dict[str, str]:
+    """{Turkish UI text: its translation} for what could be translated: new texts are machine-translated once and
+    stored, so later users (and pages) get them from the table. A text left out is shown in Turkish."""
+    texts = list(dict.fromkeys(t for t in texts if t.strip()))
+    if target == DEFAULT_LANGUAGE:
+        return {}
+    out: dict[str, str] = {}
+    for start in range(0, len(texts), UI_BATCH):
+        batch = texts[start : start + UI_BATCH]
+        try:
+            translated = await translate(db, translator, [_framed(t) for t in batch], DEFAULT_LANGUAGE, target)
+        except AIUnavailableError as e:
+            log.warning("UI texts not translated to %s: %s", target, e)
+            rest = texts[start:]
+            found = await stored(db, [(_framed(t), DEFAULT_LANGUAGE) for t in rest], target)
+            for t in rest:
+                if (hit := found.get(source_hash(_framed(t), DEFAULT_LANGUAGE))) is not None:
+                    out[t] = _unframed(t, hit)
+            break
+        out.update((t, _unframed(t, tr)) for t, tr in zip(batch, translated, strict=True))
+    return out
+
+
 async def languages_in_use(db: AsyncSession) -> list[str]:
     """Turkish + every language a user has chosen. Content is translated ahead only into these (the free endpoint is
     rate-limited, and most of the ~80 supported languages have no reader); a newly chosen language is filled in by

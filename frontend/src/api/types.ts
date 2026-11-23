@@ -11,6 +11,13 @@ export interface Language {
   dir: 'ltr' | 'rtl';
 }
 
+/** POST /ui-texts: the UI's Turkish texts in the user's site language (machine-translated once, stored). */
+export interface UiTexts {
+  language: LanguageCode;
+  dir: 'ltr' | 'rtl';
+  texts: Record<string, string>; // Turkish text → translation; a missing one stays Turkish
+}
+
 export interface Me {
   id: number;
   name: string;

@@ -7,9 +7,11 @@ import { MaintenanceTimeline } from '../../components/MaintenanceTimeline';
 import { SectionTitle } from '../../components/SectionTitle';
 import { useMe } from '../auth';
 import { MeCard } from './components/MeCard';
+import { useT } from '../../i18n';
 
 /** Technician home: his authorized status, scan to open a machine, his recent jobs. */
 export function TechHomePage() {
+  const t = useT();
   const me = useMe();
   const { state, reload } = useApi<MaintenanceRecord[]>('/me/maintenance');
   return (
@@ -17,13 +19,13 @@ export function TechHomePage() {
       <MeCard me={me} />
       <Link className="cta" to="/scan">
         <span className="ic" aria-hidden="true">⌁</span>
-        <span className="grow"><b>Makinenin QR'ını tara</b><small>Makine sayfasından "Bakım kaydı" açın</small></span>
+        <span className="grow"><b>{t('Makinenin QR\'ını tara')}</b><small>{t('Makine sayfasından "Bakım kaydı" açın')}</small></span>
       </Link>
-      <SectionTitle title="Son kayıtlarım" />
+      <SectionTitle title={t('Son kayıtlarım')} />
       <AsyncView state={state} onRetry={reload}>
         {(records) => (
           <div className="card">
-            {records.length === 0 ? <EmptyState message="Henüz bakım kaydınız yok." /> : <MaintenanceTimeline records={records} showMachine />}
+            {records.length === 0 ? <EmptyState message={t('Henüz bakım kaydınız yok.')} /> : <MaintenanceTimeline records={records} showMachine />}
           </div>
         )}
       </AsyncView>

@@ -5,9 +5,11 @@ import { ErrorMessage } from '../../components/ErrorMessage';
 import { PageTitle } from '../../components/PageTitle';
 import { createMachine } from './api';
 import { MachineForm } from './components/MachineForm';
+import { useT } from '../../i18n';
 
 /** Usta or patron adds a machine, then lands on its page; an usta becomes its usta (KAN-27). */
 export function NewMachinePage() {
+  const t = useT();
   const navigate = useNavigate();
   const create = useAction(createMachine);
 
@@ -18,7 +20,7 @@ export function NewMachinePage() {
 
   return (
     <>
-      <PageTitle title="Makine ekle" />
+      <PageTitle title={t('Makine ekle')} />
       <MachineForm pending={create.pending} onSubmit={(b) => void submit(b)} />
       <ErrorMessage error={create.error} />
     </>

@@ -12,9 +12,11 @@ import { MachineTable } from './components/MachineTable';
 import { StatsTiles } from './components/StatsTiles';
 import { useFormSubmit } from './hooks/useFormSubmit';
 import type { ExternalVideoSubmit } from './types';
+import { useT } from '../../i18n';
 
 /** Patron: machine overview with search, document upload and outside videos (KAN-32, 33, 34). */
 export function AdminMachinesPage() {
+  const t = useT();
   const preset = Number(useSearchParams()[0].get('machine')) || null;
   const [q, setQ] = useState('');
   const { state, reload } = useApi<AdminMachineList>(`/admin/machines?q=${encodeURIComponent(q)}`);
@@ -24,12 +26,12 @@ export function AdminMachinesPage() {
 
   return (
     <>
-      <PageTitle title="Yönetim" />
+      <PageTitle title={t('Yönetim')} />
       <AdminTabs />
-      <Link className="btn" data-variant="secondary" to="/machines/new">+ Makine ekle</Link>
+      <Link className="btn" data-variant="secondary" to="/machines/new">{t('+ Makine ekle')}</Link>
       <div className="field">
-        <label className="sr-only" htmlFor="admin-q">Makine ara</label>
-        <input id="admin-q" type="search" placeholder="Makine adıyla ara…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <label className="sr-only" htmlFor="admin-q">{t('Makine ara')}</label>
+        <input id="admin-q" type="search" placeholder={t('Makine adıyla ara…')} value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       <AsyncView state={state} onRetry={reload}>
         {(data) => (

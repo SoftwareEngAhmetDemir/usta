@@ -1,13 +1,15 @@
 import { errorMessage } from '../../api';
+import { useT } from '../../i18n';
 
 export function ErrorMessage({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  const t = useT();
   if (!error) return null;
   return (
     <div className="alert-error row wrap" role="alert">
-      <span className="grow">{errorMessage(error)}</span>
+      <span className="grow">{t(errorMessage(error))}</span>
       {onRetry && (
         <button type="button" className="chip" onClick={onRetry}>
-          Tekrar dene
+          {t('Tekrar dene')}
         </button>
       )}
     </div>

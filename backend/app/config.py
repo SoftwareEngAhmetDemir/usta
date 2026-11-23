@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr | None = None
     vertex_project_id: str = ""
     vertex_region: str = "us-central1"
-    gemini_model: str = "gemini-2.5-flash"  # only for the final answer and document summaries
+    gemini_model: str = "gemini-2.5-flash"  # answers, their search rewrites, document summaries, transcript fixes
 
     # Knowledge pipelines (local models, CPU). Model names are Hugging Face ids; changing EMBEDDING_MODEL makes the
     # startup re-embed every chunk (no re-transcription).
@@ -47,7 +47,7 @@ class Settings(BaseSettings):
 
     # "Makineye sor": hybrid search (vector + BM25, RRF) → cross-encoder rerank → confidence gate → LLM.
     ask_candidates: int = 20  # per retriever
-    ask_top_k: int = 5  # sent to the LLM after rerank
+    ask_top_k: int = Field(5, ge=1)  # ASK_TOP_K: best reranked chunks sent to the LLM, which picks and cites
     # Best rerank score (0..1) below this = "not found" without calling the LLM. Tuned 2026-11-22 on a live set:
     # unrelated questions scored <= 0.044, correct-but-paraphrased ones 0.09-0.33; the LLM still refuses
     # near-misses above the gate. Re-tune with scripts/eval_retrieval.py on the pilot questions (KAN-76).

@@ -4,9 +4,11 @@ import { useApi } from '../../api';
 import { AsyncView } from '../../components/AsyncView';
 import { PageTitle } from '../../components/PageTitle';
 import { DocumentUploadForm, uploadDocument, useFormSubmit } from '../admin';
+import { useT } from '../../i18n';
 
 /** "Belge yükle" from the machine page: the machine's ustas and the patron add a manual, catalog… (KAN-33). */
 export function DocumentUploadPage() {
+  const t = useT();
   const { machineId = '' } = useParams();
   const navigate = useNavigate();
   const { state, reload } = useApi<MachinePage>(`/machines/${machineId}`);
@@ -14,7 +16,7 @@ export function DocumentUploadPage() {
 
   return (
     <>
-      <PageTitle title="Belge yükle" back />
+      <PageTitle title={t('Belge yükle')} back />
       <AsyncView state={state} onRetry={reload}>
         {({ machine, actions }) =>
           actions.upload_document ? (
@@ -25,7 +27,7 @@ export function DocumentUploadPage() {
               onSubmit={(body) => void send.submit(body).then((ok) => { if (ok) navigate(`/m/${machine.id}`); })}
             />
           ) : (
-            <div className="alert-error" role="alert">Bu makineye belge yükleme yetkiniz yok. Makinenin ustası veya patron yükleyebilir.</div>
+            <div className="alert-error" role="alert">{t('Bu makineye belge yükleme yetkiniz yok. Makinenin ustası veya patron yükleyebilir.')}</div>
           )
         }
       </AsyncView>

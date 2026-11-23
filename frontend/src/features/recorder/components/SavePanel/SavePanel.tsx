@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Button } from '../../../../components/Button';
 import { Field } from '../../../../components/Field';
+import { useT } from '../../../../i18n';
 
 interface Props {
   saving: boolean;
@@ -10,6 +11,7 @@ interface Props {
 
 /** After recording (the machine is already chosen): a short title, then "Yeniden çek" or "Kaydet". */
 export function SavePanel({ saving, onRetake, onSave }: Props) {
+  const t = useT();
   const [title, setTitle] = useState('');
   const [error, setError] = useState<string>();
   function submit(e: FormEvent) {
@@ -20,12 +22,12 @@ export function SavePanel({ saving, onRetake, onSave }: Props) {
   }
   return (
     <form className="stack" onSubmit={submit} noValidate>
-      <Field label="Başlık" htmlFor="rec-title" error={error}>
-        <input id="rec-title" value={title} maxLength={120} placeholder="Örn. Torç kablosu kontrolü" onChange={(e) => setTitle(e.target.value)} />
+      <Field label={t('Başlık')} htmlFor="rec-title" error={error}>
+        <input id="rec-title" value={title} maxLength={120} placeholder={t('Örn. Torç kablosu kontrolü')} onChange={(e) => setTitle(e.target.value)} />
       </Field>
       <div className="row">
-        <Button variant="secondary" onClick={onRetake} disabled={saving}>Yeniden çek</Button>
-        <Button type="submit" loading={saving}>Kaydet</Button>
+        <Button variant="secondary" onClick={onRetake} disabled={saving}>{t('Yeniden çek')}</Button>
+        <Button type="submit" loading={saving}>{t('Kaydet')}</Button>
       </div>
     </form>
   );

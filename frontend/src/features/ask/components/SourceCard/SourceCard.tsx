@@ -1,10 +1,12 @@
 import { Link } from 'react-router';
 import type { AnswerSource } from '../../../../api';
 import { formatDate } from '../../../../lib/format';
+import { useT } from '../../../../i18n';
 
 /** Video source opens the player at that second (with a keyframe of that part); document source opens the file
  * at that page (KAN-61). Labels come from the backend. */
 export function SourceCard({ source }: { source: AnswerSource }) {
+  const t = useT();
   switch (source.kind) {
     case 'video':
       return (
@@ -16,7 +18,7 @@ export function SourceCard({ source }: { source: AnswerSource }) {
           )}
           <span className="grow">
             <span className="strong">{source.title}</span><br />
-            <span className="where">VİDEO · {source.timestamp_label}</span> <span className="muted">· {source.usta_name}</span>
+            <span className="where">{t('VİDEO ·')}{' '}{source.timestamp_label}</span> <span className="muted">· {source.usta_name}</span>
           </span>
         </Link>
       );
@@ -26,7 +28,7 @@ export function SourceCard({ source }: { source: AnswerSource }) {
           <span className="k" aria-hidden="true">📄</span>
           <span className="grow">
             <span className="strong">{source.title}</span><br />
-            <span className="where">SAYFA {source.page}</span>
+            <span className="where">{t('SAYFA')}{' '}{source.page}</span>
             {source.section_heading && <span className="muted"> · {source.section_heading}</span>}
           </span>
         </Link>
@@ -36,7 +38,7 @@ export function SourceCard({ source }: { source: AnswerSource }) {
         <div className="src">
           <span className="k" aria-hidden="true">🧰</span>
           <span className="grow">
-            <span className="strong">Ustanın önceki cevabı</span><br />
+            <span className="strong">{t('Ustanın önceki cevabı')}</span><br />
             <span className="where">{source.usta_name} · {formatDate(source.answered_at)}</span>
           </span>
         </div>

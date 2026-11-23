@@ -5,9 +5,11 @@ import { RegisterForm } from './components/RegisterForm';
 import { HOME_BY_ROLE } from './constants';
 import { useAuth } from './hooks/useAuth';
 import { fromState } from './redirect';
+import { useT } from '../../i18n';
 
 /** Self sign-up as İşçi or Usta. Afterwards it goes where login would: the scanned machine, else the role home. */
 export function RegisterPage() {
+  const t = useT();
   const { auth, signUp } = useAuth();
   const navigate = useNavigate();
   const { state } = useLocation();
@@ -21,11 +23,11 @@ export function RegisterPage() {
   }
 
   return (
-    <AuthShell title="Kayıt ol">
-      <p className="muted" style={{ margin: 0 }}>İşçi veya Usta olarak kayıt olabilirsiniz; Teknisyen ve Patron yetkisini patron verir.</p>
+    <AuthShell title={t('Kayıt ol')}>
+      <p className="muted" style={{ margin: 0 }}>{t('İşçi veya Usta olarak kayıt olabilirsiniz; Teknisyen ve Patron yetkisini patron verir.')}</p>
       <RegisterForm onSubmit={submit} />
       <p className="muted" style={{ margin: 0 }}>
-        Zaten hesabınız var mı? <Link to="/login" state={state}>Giriş yap</Link>
+        {t('Zaten hesabınız var mı?')}{' '}<Link to="/login" state={state}>{t('Giriş yap')}</Link>
       </p>
     </AuthShell>
   );

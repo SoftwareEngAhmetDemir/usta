@@ -82,6 +82,11 @@ a { color: var(--steel); }
 .thumb.doc { background: #e9ece6; color: var(--steel); font-weight: 600; }
 .thumb.ext { background: #7a1f1f; }
 .thumb.alert { background: var(--safety); color: var(--safety-ink); }
+.lang-loading { position: sticky; top: 64px; z-index: 3; height: 0; display: flex; justify-content: center; }
+.lang-loading-bar { position: absolute; inset-inline: 0; top: 0; height: 3px; background: linear-gradient(90deg, transparent, var(--safety), transparent); background-size: 50% 100%; background-repeat: no-repeat; }
+.lang-loading-chip { margin-top: 8px; height: fit-content; display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 14px; box-shadow: 0 6px 16px rgba(0,0,0,.25); }
+.spinner.small { width: 16px; height: 16px; border-width: 2px; margin: 0; border-color: rgba(255,255,255,.35); border-top-color: #fff; }
+@media (prefers-reduced-motion: no-preference) { .lang-loading-bar { animation: lang-slide 1.1s ease-in-out infinite; } @keyframes lang-slide { from { background-position: -100% 0; } to { background-position: 200% 0; } } }
 .spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--steel); margin: 24px auto; }
 @media (prefers-reduced-motion: no-preference) { .spinner, .step.running .dot { animation: spin .9s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } } }
 .cta { display: flex; gap: 12px; align-items: center; background: var(--steel); color: #fff; border: 0; border-radius: 12px; padding: 14px; text-align: start; width: 100%; text-decoration: none; }

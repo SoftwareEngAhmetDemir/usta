@@ -125,11 +125,19 @@ class FakeLLM(_Failing):
         self.sources: list[str] = []  # what the last answer() call was given
         self.corrections: dict[str, str] = {}  # refine_transcript: sentence → corrected sentence (else unchanged)
         self.context = ""  # what the last refine_transcript() was told about the video
+        self.rewrites: list[str] = []  # search_queries() returns these
+        self.rewrite_context = ""  # what the last search_queries() was told about the machine
 
     async def answer(self, question: str, language: str, sources: list[str]) -> AnswerDraft:
         self._call()
         self.sources = sources
         return self.draft or AnswerDraft(found=True, answer=f"[{language}] {sources[0]}", source_ids=[1])
+
+    async def search_queries(self, question: str, languages: list[str], context: str) -> list[str]:
+        if self.fail:  # not counted in `calls` (those are answer/summary/refine calls the tests assert on)
+            raise AIUnavailableError("fake FakeLLM failed")
+        self.rewrite_context = context
+        return self.rewrites
 
     async def refine_transcript(self, sentences: list[str], language: str, context: str) -> list[str]:
         self._call()

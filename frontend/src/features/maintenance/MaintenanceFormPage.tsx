@@ -10,9 +10,11 @@ import { useMe } from '../auth';
 import { createMaintenance, type MaintenanceIn } from './api';
 import { MaintenanceForm } from './components/MaintenanceForm';
 import { MeCard } from './components/MeCard';
+import { useT } from '../../i18n';
 
 /** Record a maintenance job; then the machine page shows it at the top of the history. */
 export function MaintenanceFormPage() {
+  const t = useT();
   const { machineId = '' } = useParams();
   const me = useMe();
   const navigate = useNavigate();
@@ -34,7 +36,7 @@ export function MaintenanceFormPage() {
 
   return (
     <>
-      <PageTitle title="Bakım kaydı" back />
+      <PageTitle title={t('Bakım kaydı')} back />
       <AsyncView state={state} onRetry={reload}>
         {(opts) => (
           <>
@@ -42,9 +44,9 @@ export function MaintenanceFormPage() {
               <div className="strong">{opts.machine.name}</div>
               <div className="muted">{opts.machine.code} · {opts.machine.model} · {opts.machine.location}</div>
             </div>
-            <div className="label">Yapan</div>
-            <MeCard me={me} note="giriş yapan kullanıcı" />
-            {progress !== null && <ProgressBar fraction={progress} label="Kaydediliyor" />}
+            <div className="label">{t('Yapan')}</div>
+            <MeCard me={me} note={t('giriş yapan kullanıcı')} />
+            {progress !== null && <ProgressBar fraction={progress} label={t('Kaydediliyor')} />}
             <ErrorMessage error={error} />
             <MaintenanceForm openers={opts.openers} saving={progress !== null} onSave={save} />
           </>

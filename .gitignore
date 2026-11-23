@@ -21,3 +21,5 @@ uploads/
 # Local model/vector data (backend): Tesseract language files, Chroma vector store
 backend/.tessdata/
 backend/.chroma/
+# graphify writes to .claude/graphify-out (GRAPHIFY_OUT); a run without it must not be committed
+/graphify-out/

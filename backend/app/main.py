@@ -30,6 +30,7 @@ from app.maintenance.router import router as maintenance_router
 from app.questions.router import router as questions_router
 from app.search.jobs import REEMBED_JOB
 from app.search.models import Chunk
+from app.translations.router import router as translations_router
 from app.uploads_router import router as uploads_router
 from app.videos.router import router as videos_router
 
@@ -37,7 +38,7 @@ log = logging.getLogger(__name__)
 
 API_ROUTERS = (
     health_router, auth_router, me_router, machines_router, videos_router, documents_router, questions_router,
-    ask_router, maintenance_router, alerts_router, admin_router, jobs_router,
+    ask_router, maintenance_router, alerts_router, admin_router, jobs_router, translations_router,
 )  # fmt: skip
 
 

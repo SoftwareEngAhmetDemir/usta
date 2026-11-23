@@ -3,6 +3,7 @@ import type { PersonRef } from '../../../../api';
 import { Button } from '../../../../components/Button';
 import { Field } from '../../../../components/Field';
 import type { MaintenanceIn } from '../../api';
+import { useT } from '../../../../i18n';
 
 interface Props {
   openers: PersonRef[];
@@ -12,6 +13,7 @@ interface Props {
 
 /** What was done, who opened the machine, optional photo/video (KAN-39). */
 export function MaintenanceForm({ openers, saving, onSave }: Props) {
+  const t = useT();
   const [description, setDescription] = useState('');
   const [openedBy, setOpenedBy] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
@@ -30,19 +32,19 @@ export function MaintenanceForm({ openers, saving, onSave }: Props) {
 
   return (
     <form className="stack" onSubmit={submit} noValidate>
-      <Field label="Yapılan iş" htmlFor="m-what" error={errors.description}>
+      <Field label={t('Yapılan iş')} htmlFor="m-what" error={errors.description}>
         <textarea id="m-what" value={description} onChange={(e) => setDescription(e.target.value)} />
       </Field>
-      <Field label="Makineyi açan" htmlFor="m-open" error={errors.openedBy}>
+      <Field label={t('Makineyi açan')} htmlFor="m-open" error={errors.openedBy}>
         <select id="m-open" value={openedBy} onChange={(e) => setOpenedBy(e.target.value)}>
-          <option value="">Seçin</option>
+          <option value="">{t('Seçin')}</option>
           {openers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </Field>
-      <Field label="Fotoğraf / video (isteğe bağlı)" htmlFor="m-file">
+      <Field label={t('Fotoğraf / video (isteğe bağlı)')} htmlFor="m-file">
         <input id="m-file" type="file" accept="image/*,video/*" onChange={(e) => setAttachment(e.target.files?.[0] ?? null)} />
       </Field>
-      <Button type="submit" loading={saving}>Bakımı kaydet</Button>
+      <Button type="submit" loading={saving}>{t('Bakımı kaydet')}</Button>
     </form>
   );
 }

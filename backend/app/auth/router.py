@@ -77,7 +77,7 @@ async def languages() -> list[Language]:
 
 @me_router.patch("/me/language", response_model=Me)
 async def set_language(body: LanguageIn, user: CurrentUser, db: SessionDep, ctx: CtxDep) -> Me:
-    """Content language of the machine pages (KAN-46). The UI stays Turkish. Earlier questions, answers and
+    """Content language of the machine pages (KAN-46) and of the UI (`POST /ui-texts`). Earlier questions, answers and
     summaries are translated into it in the background."""
     if body.language not in LANGUAGES:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Bu dil desteklenmiyor.")

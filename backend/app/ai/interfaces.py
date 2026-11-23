@@ -111,6 +111,12 @@ class LLMClient(Protocol):
 
     async def summarize(self, pages: list[str], language: str) -> list[str]: ...
 
+    async def search_queries(self, question: str, languages: list[str], context: str) -> list[str]:
+        """The question rewritten as short standalone search queries in each of `languages` (who "you" is, vague
+        words spelled out with the words a transcript or manual would use). Retrieval only, never shown.
+        `context`: the machine, its ustas and what its knowledge is about."""
+        ...
+
     async def refine_transcript(self, sentences: list[str], language: str, context: str) -> list[str]:
         """Speech-recognition errors fixed, one output per input sentence in the same order (timing is kept).
         `context`: what the video is about (machine, model, title), to get technical terms right."""

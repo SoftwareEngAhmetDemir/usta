@@ -4,7 +4,7 @@ exactly as "Makineye sor" does, without calling the LLM).
 Stop ./dev.sh first: the vector store must be opened by one process at a time.
 
 cd backend
-.venv/bin/python scripts/eval_retrieval.py scripts/eval_example.json [--k 5]
+.venv/bin/python scripts/eval_retrieval.py scripts/eval_example.json [--k N]  (default ASK_TOP_K)
 """
 
 import argparse
@@ -42,7 +42,7 @@ async def main(data: EvalSet, k: int) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("file", type=Path)
-    parser.add_argument("--k", type=int, default=5)
+    parser.add_argument("--k", type=int, default=get_settings().ask_top_k)
     args = parser.parse_args()
     if not args.file.exists():
         sys.exit(f"{args.file} not found")

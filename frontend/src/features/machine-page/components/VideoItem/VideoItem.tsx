@@ -3,20 +3,23 @@ import type { VideoAvailability, VideoSummary } from '../../../../api';
 import type { PillTone } from '../../../../components/Pill';
 import { Pill } from '../../../../components/Pill';
 import { formatDate, formatDuration } from '../../../../lib/format';
+import { useT } from '../../../../i18n';
+import type { Translate } from '../../../../i18n';
 
-const AVAILABILITY: Record<VideoAvailability, [PillTone, (lang: string) => string]> = {
-  original: ['info', () => 'Orijinal'],
-  dubbed: ['ok', (l) => `${l} dublaj`],
-  subtitles: ['ok', (l) => `${l} altyazı`],
-  preparing: ['warn', () => 'Hazırlanıyor'],
-  on_demand: ['warn', (l) => `${l}: istenince hazırlanır`],
+const AVAILABILITY: Record<VideoAvailability, [PillTone, (lang: string, t: Translate) => string]> = {
+  original: ['info', (_, t) => t('Orijinal')],
+  dubbed: ['ok', (l, t) => `${l} ${t('dublaj')}`],
+  subtitles: ['ok', (l, t) => `${l} ${t('altyazı')}`],
+  preparing: ['warn', (_, t) => t('Hazırlanıyor')],
+  on_demand: ['warn', (l, t) => `${l}: ${t('istenince hazırlanır')}`],
 };
 
 function StatusPill({ video, languageName }: { video: VideoSummary; languageName: string }) {
-  if (video.status === 'processing') return <Pill tone="warn">İşleniyor</Pill>;
-  if (video.status === 'failed') return <Pill tone="bad">İşlenemedi</Pill>;
+  const t = useT();
+  if (video.status === 'processing') return <Pill tone="warn">{t('İşleniyor')}</Pill>;
+  if (video.status === 'failed') return <Pill tone="bad">{t('İşlenemedi')}</Pill>;
   const [tone, label] = AVAILABILITY[video.availability];
-  return <Pill tone={tone}>{label(languageName)}</Pill>;
+  return <Pill tone={tone}>{label(languageName, t)}</Pill>;
 }
 
 export function VideoItem({ video, languageName }: { video: VideoSummary; languageName: string }) {

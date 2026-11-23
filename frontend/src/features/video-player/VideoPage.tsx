@@ -9,9 +9,11 @@ import { PreparationCard } from './components/PreparationCard';
 import { TrackPicker } from './components/TrackPicker';
 import { Transcript } from './components/Transcript';
 import { useVideoPlayer } from './hooks/useVideoPlayer';
+import { useT } from '../../i18n';
 
 /** Player in the worker's language; `?t=108` opens at that second (Ask the machine sources). */
 export function VideoPage() {
+  const t = useT();
   const videoId = Number(useParams().videoId);
   const startSec = Number(useSearchParams()[0].get('t') ?? 0) || 0;
   const p = useVideoPlayer(videoId);
@@ -21,12 +23,12 @@ export function VideoPage() {
 
   return (
     <>
-      <PageTitle title="Video" back />
+      <PageTitle title={t('Video')} back />
       <AsyncView state={p.state} onRetry={p.reload}>
         {(v) => (
           <>
             {v.status !== 'ready' || !p.audio ? (
-              <div className="card warn">Video henüz işleniyor. Hazır olunca burada oynatılır.</div>
+              <div className="card warn">{t('Video henüz işleniyor. Hazır olunca burada oynatılır.')}</div>
             ) : (
               <Player title={v.title} audio={p.audio} subtitle={p.subtitle} seek={seek} onTime={setNow} />
             )}

@@ -6,11 +6,13 @@ import { PageTitle } from '../../components/PageTitle';
 import { DOCUMENT_TYPE_LABEL } from '../../lib/labels';
 import { DocumentViewer } from './components/DocumentViewer';
 import { SummaryCard } from './components/SummaryCard';
+import { useT } from '../../i18n';
 
 const POLL_MS = 5000;
 
 /** Document + AI summary; `?page=37` opens the PDF at that page. */
 export function DocumentPage() {
+  const t = useT();
   const { documentId = '' } = useParams();
   const page = Math.max(1, Number(useSearchParams()[0].get('page') ?? 1) || 1);
   const { state, reload } = useApi<DocumentDetail>(`/documents/${documentId}`, (d) =>
@@ -19,14 +21,14 @@ export function DocumentPage() {
 
   return (
     <>
-      <PageTitle title="Doküman" back />
+      <PageTitle title={t('Doküman')} back />
       <AsyncView state={state} onRetry={reload}>
         {(doc) => (
           <>
             <div className="card">
               <div className="strong">{doc.title}</div>
               <div className="muted">
-                {DOCUMENT_TYPE_LABEL[doc.type]} · {doc.page_count} sayfa · <Link to={`/m/${doc.machine_id}`}>{doc.machine_name}</Link>
+                {t(DOCUMENT_TYPE_LABEL[doc.type])} · {doc.page_count}{' '}{t('sayfa ·')}{' '}<Link to={`/m/${doc.machine_id}`}>{doc.machine_name}</Link>
               </div>
             </div>
             <SummaryCard status={doc.summary_status} summary={doc.summary} />

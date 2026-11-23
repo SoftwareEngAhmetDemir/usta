@@ -7,25 +7,27 @@ import { PageTitle } from '../../components/PageTitle';
 import { QaCard } from '../../components/QaCard';
 import { SectionTitle } from '../../components/SectionTitle';
 import { MachineChips } from './components/MachineChips';
+import { useT } from '../../i18n';
 
 /** Usta profile: the machines he knows and the questions he answered (KAN-28, KAN-65). */
 export function UstaProfilePage() {
+  const t = useT();
   const { ustaId = '' } = useParams();
   const { state, reload } = useApi<UstaProfile>(`/ustas/${ustaId}`);
   return (
     <>
-      <PageTitle title="Usta" back />
+      <PageTitle title={t('Usta')} back />
       <AsyncView state={state} onRetry={reload}>
         {(p) => (
           <>
             <div className="card stack">
               <h2 style={{ margin: 0 }}>🧰 {p.name}</h2>
-              <div className="label">Bildiği makineler</div>
+              <div className="label">{t('Bildiği makineler')}</div>
               <MachineChips machines={p.machines} />
             </div>
-            <SectionTitle title="Cevapladığı sorular" extra={p.answered.length} />
+            <SectionTitle title={t('Cevapladığı sorular')} extra={p.answered.length} />
             <div className="card">
-              {p.answered.length === 0 ? <EmptyState message="Henüz cevap yok." /> : p.answered.map((q) => <QaCard key={q.id} entry={q} showMachine />)}
+              {p.answered.length === 0 ? <EmptyState message={t('Henüz cevap yok.')} /> : p.answered.map((q) => <QaCard key={q.id} entry={q} showMachine />)}
             </div>
           </>
         )}

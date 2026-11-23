@@ -7,9 +7,11 @@ import { PageTitle } from '../../components/PageTitle';
 import { stickerPdfUrl } from './api';
 import { AdminTabs } from './components/AdminTabs';
 import { StickerSheet } from './components/StickerSheet';
+import { useT } from '../../i18n';
 
 /** Printable QR sticker sheet for the ticked machines; the backend also renders it as one PDF (KAN-30). */
 export function StickersPage() {
+  const t = useT();
   const { state, reload } = useApi<AdminMachineList>('/admin/machines?q=');
   const [excluded, setExcluded] = useState<ReadonlySet<number>>(new Set());
   const toggle = (id: number) =>
@@ -20,7 +22,7 @@ export function StickersPage() {
     });
   return (
     <>
-      <PageTitle title="QR etiketleri" />
+      <PageTitle title={t('QR etiketleri')} />
       <AdminTabs />
       <AsyncView state={state} onRetry={reload}>
         {(data) => {
@@ -29,13 +31,13 @@ export function StickersPage() {
             <>
               <div className="row wrap no-print">
                 {picked.length === 0 ? (
-                  <span className="muted">Yazdırmak için en az bir makine seçin.</span>
+                  <span className="muted">{t('Yazdırmak için en az bir makine seçin.')}</span>
                 ) : (
                   <>
                     <a className="btn" data-size="small" href={stickerPdfUrl(excluded.size ? picked : undefined)} download>
-                      PDF indir ({picked.length})
+                      {t('PDF indir (')}{picked.length})
                     </a>
-                    <Button variant="secondary" size="small" onClick={() => window.print()}>Yazdır</Button>
+                    <Button variant="secondary" size="small" onClick={() => window.print()}>{t('Yazdır')}</Button>
                   </>
                 )}
               </div>

@@ -14,6 +14,7 @@ import { ReplyPage, UstaHomePage, UstaProfilePage } from '../features/usta';
 import { VideoPage } from '../features/video-player';
 import { AppLayout } from './components/AppLayout';
 import { HomeRedirect } from './components/HomeRedirect';
+import { UserLanguage } from './components/UserLanguage';
 
 export function AppRoutes() {
   return (
@@ -21,7 +22,7 @@ export function AppRoutes() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route element={<RequireAuth><AlertsProvider><AppLayout /></AlertsProvider></RequireAuth>}>
+        <Route element={<RequireAuth><UserLanguage><AlertsProvider><AppLayout /></AlertsProvider></UserLanguage></RequireAuth>}>
           <Route index element={<HomeRedirect />} />
           <Route path="scan" element={<ScanPage />} />
           <Route path="machines/new" element={<NewMachinePage />} />

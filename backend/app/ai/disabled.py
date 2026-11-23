@@ -13,5 +13,8 @@ class DisabledLLM:
     async def summarize(self, pages: list[str], language: str) -> list[str]:
         raise AIUnavailableError(_MESSAGE)
 
+    async def search_queries(self, question: str, languages: list[str], context: str) -> list[str]:
+        raise AIUnavailableError(_MESSAGE)
+
     async def refine_transcript(self, sentences: list[str], language: str, context: str) -> list[str]:
         raise AIUnavailableError(_MESSAGE)

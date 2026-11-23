@@ -26,7 +26,7 @@ describe('AskPage (KAN-61)', () => {
     show();
     await ask('Çapak oluşuyor');
     await userEvent.click(await screen.findByRole('button', { name: /Ustaya sor/ }));
-    expect(await screen.findByText(/Mehmet Usta, Hasan Usta kişisine iletildi/)).toBeInTheDocument();
+    expect(await screen.findByText(/Soru iletildi: Mehmet Usta, Hasan Usta\./)).toBeInTheDocument();
     expect(calls.find((c) => c.path === '/machines/1/questions')?.body).toEqual({ question: 'Çapak oluşuyor' });
     expect(screen.getByRole('link', { name: 'Sorularım →' })).toBeInTheDocument();
   });

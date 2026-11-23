@@ -27,6 +27,16 @@ export function mockApi(routes: Routes_) {
   return { fetchMock, calls };
 }
 
+/** fetch that waits until the test calls `answer` (to see what the page shows while a request is out). */
+export function holdFetch() {
+  let answer: (body: object) => void = () => undefined;
+  const pending = new Promise<Response>((resolve) => {
+    answer = (body) => resolve(new Response(JSON.stringify(body), { status: 200 }));
+  });
+  vi.stubGlobal('fetch', vi.fn(() => pending));
+  return { answer };
+}
+
 /** Render `ui` inside a router at `url`; `pattern` gives route params to the element. */
 export function renderAt(ui: ReactElement, url = '/', pattern = '*'): RenderResult {
   return render(

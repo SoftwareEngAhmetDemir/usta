@@ -13,6 +13,7 @@ import { QaSection } from './components/QaSection';
 import { UstaList } from './components/UstaList';
 import { VideoList } from './components/VideoList';
 import { useMe } from '../auth';
+import { useT } from '../../i18n';
 
 function highlightFrom(state: unknown): number | undefined {
   if (state && typeof state === 'object' && 'highlight' in state && typeof state.highlight === 'number') return state.highlight;
@@ -21,6 +22,7 @@ function highlightFrom(state: unknown): number | undefined {
 
 /** Everything about one machine on one screen, opened from its QR (KAN-31, KAN-71). */
 export function MachinePage() {
+  const t = useT();
   const { machineId = '' } = useParams();
   const highlight = highlightFrom(useLocation().state);
   const { state, reload } = useApi<MachinePageData>(`/machines/${machineId}`);
@@ -31,7 +33,7 @@ export function MachinePage() {
 
   return (
     <>
-      <PageTitle title="Makine" />
+      <PageTitle title={t('Makine')} />
       <AsyncView state={state} onRetry={reload}>
         {(page) => (
           <>
@@ -40,7 +42,7 @@ export function MachinePage() {
             {page.actions.ask && (
               <Link className="cta" to={`/m/${page.machine.id}/ask`}>
                 <span className="ic" aria-hidden="true">?</span>
-                <span className="grow"><b>Makineye sor</b><small>Cevap videolardan ve dokümanlardan, kaynağıyla gelir</small></span>
+                <span className="grow"><b>{t('Makineye sor')}</b><small>{t('Cevap videolardan ve dokümanlardan, kaynağıyla gelir')}</small></span>
               </Link>
             )}
             <VideoList machineId={page.machine.id} videos={page.videos} external={page.external_videos} languageName={languageName} canRecord={page.actions.record_video} />

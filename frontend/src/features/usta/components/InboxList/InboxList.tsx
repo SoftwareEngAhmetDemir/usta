@@ -3,9 +3,11 @@ import type { InboxQuestion } from '../../../../api';
 import { EmptyState } from '../../../../components/EmptyState';
 import { Localized } from '../../../../components/Localized';
 import { formatDateTime } from '../../../../lib/format';
+import { useT } from '../../../../i18n';
 
 export function InboxList({ items }: { items: InboxQuestion[] }) {
-  if (items.length === 0) return <EmptyState message="Açık soru yok." />;
+  const t = useT();
+  if (items.length === 0) return <EmptyState message={t('Açık soru yok.')} />;
   return (
     <>
       {items.map((q) => (
@@ -14,7 +16,7 @@ export function InboxList({ items }: { items: InboxQuestion[] }) {
           <span className="grow">
             <span className="strong"><Localized value={q.question} /></span>
             <br />
-            <span className="muted">{q.machine_name} · {q.worker_name} · dili: {q.worker_language_name} · {formatDateTime(q.created_at)}</span>
+            <span className="muted">{q.machine_name} · {q.worker_name}{' '}{t('· dili:')}{' '}{q.worker_language_name} · {formatDateTime(q.created_at)}</span>
           </span>
         </Link>
       ))}

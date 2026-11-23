@@ -1,4 +1,5 @@
-""" "Makineye sor" (KAN-60, 76, 77, 78): hybrid search → rerank → confidence gate → one LLM call.
+""" "Makineye sor" (KAN-60, 76, 77, 78): LLM query rewrite + MT → hybrid search → rerank → confidence gate →
+LLM answer.
 Answers come only from this machine's video topics, document sections and earlier usta answers. Anything uncertain
 becomes "not found" (→ "Ustaya sor"): on dangerous machines no answer beats a wrong one."""
 
@@ -133,6 +134,32 @@ async def _translated(ctx: AppContext, db: AsyncSession, machine_id: int, questi
     return [q for q in dict.fromkeys(out) if q != question]
 
 
+MAX_REWRITES = 4  # LLM search queries kept: each one is another rerank pass over every candidate (CPU)
+
+
+async def _rewritten(ctx: AppContext, db: AsyncSession, machine: Machine, question: str) -> list[str]:
+    """The question rewritten by the LLM into standalone search queries in the knowledge's languages, with who "you"
+    is and vague words spelled out: "what is the main job" scores 0.007 against the usta saying "I work as a DevOps
+    engineer", "Ahmet Demir ne iş yapıyor?" 0.98. Retrieval only: the gate and the answer still judge the result.
+    Skipped (MT + the question itself still search) when the LLM is unavailable."""
+    languages = list(await db.scalars(select(Chunk.language).where(Chunk.machine_id == machine.id).distinct()))
+    authors = await db.scalars(
+        select(User.name).join(Video, Video.author_id == User.id).where(Video.machine_id == machine.id).distinct()
+    )
+    titles = await db.scalars(select(Chunk.title).where(Chunk.machine_id == machine.id).distinct().limit(20))
+    ustas = list(dict.fromkeys([*authors, *(u.name for u in machine.ustas)]))
+    context = (
+        f'machine "{machine.name}"; ustas who recorded or answer: {", ".join(ustas) or "unknown"}; '
+        f"videos and documents: {', '.join(t for t in titles if t) or 'untitled'}"
+    )
+    try:
+        queries = await ctx.ai.llm.search_queries(question, languages, context)
+    except AIUnavailableError as e:
+        log.info("question not rewritten for search: %s", e)
+        return []
+    return [q.strip()[:300] for q in queries if q.strip()][:MAX_REWRITES]
+
+
 def _retrieved(candidates: list[Candidate]) -> list[dict[str, float | int | None]]:
     return [
         {"chunk_id": c.chunk.id, "vector_rank": c.vector_rank, "keyword_rank": c.keyword_rank,
@@ -150,7 +177,8 @@ async def answer_question(
     await db.flush()
     not_found = NotFound(ustas=[person(u) for u in machine.ustas if u.id != asker.id], ask_id=entry.id)
     try:
-        queries = [question, *await _translated(ctx, db, machine.id, question)]
+        rewritten = await _rewritten(ctx, db, machine, question)
+        queries = list(dict.fromkeys([question, *await _translated(ctx, db, machine.id, question), *rewritten]))
         candidates = await hybrid_search(db, ctx.ai, machine.id, queries, settings.ask_candidates)
         top = await rerank(ctx.ai, queries, candidates, settings.ask_top_k) if candidates else []
     except Exception:  # a local model failed to load/run: say "not found", never guess

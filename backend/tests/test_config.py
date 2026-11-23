@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 from google import genai
+from pydantic import ValidationError
 
 from app.ai import factory, gemini
 from app.ai.disabled import DisabledLLM
@@ -35,3 +36,14 @@ def test_gemini_client_uses_vertex_or_a_key(monkeypatch: pytest.MonkeyPatch) -> 
     made.clear()
     gemini.client(Settings(gemini_api_key="k", vertex_project_id="my-project"))  # a key wins over Vertex
     assert made == [{"api_key": "k", "http_options": gemini._RETRY}]
+
+
+def test_ask_top_k_comes_from_env_and_must_be_at_least_one(monkeypatch: pytest.MonkeyPatch) -> None:
+    def settings() -> Settings:
+        return Settings(_env_file=None, database_url="mysql+asyncmy://u:p@db/usta", secret_key="k")
+
+    monkeypatch.setenv("ASK_TOP_K", "8")
+    assert settings().ask_top_k == 8
+    monkeypatch.setenv("ASK_TOP_K", "0")  # 0 would send the LLM nothing: refuse to start
+    with pytest.raises(ValidationError):
+        settings()

@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import type { ExternalVideo } from '../../../../api';
 import { EXTERNAL_SOURCE_LABEL } from '../../../../lib/labels';
+import { useT } from '../../../../i18n';
 
 /** Outside video (KAN-34): plays embedded when the source allows it, otherwise opens the link. */
 export function ExternalVideoItem({ video }: { video: ExternalVideo }) {
+  const t = useT();
   const [playing, setPlaying] = useState(false);
   const meta = (
     <span className="grow">
       <span className="strong">{video.title}</span>
       <br />
-      <span className="muted">Dış kaynak · {EXTERNAL_SOURCE_LABEL[video.source]}</span>
+      <span className="muted">{t('Dış kaynak ·')}{' '}{t(EXTERNAL_SOURCE_LABEL[video.source])}</span>
     </span>
   );
   const thumb = <span className="thumb ext" aria-hidden="true">▶</span>;

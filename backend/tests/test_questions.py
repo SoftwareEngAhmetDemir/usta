@@ -255,6 +255,54 @@ async def test_ask_never_trusts_an_answer_without_valid_sources(
     assert (await c.post(f"/api/machines/{machine.id}/ask", json=question)).json()["status"] == "not_found"
 
 
+async def test_ask_top_k_limits_what_the_llm_sees_and_the_llm_picks_the_source(
+    client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine, ctx: AppContext, ai: FakeAI,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:  # fmt: skip
+    usta = await make_user(Role.usta)
+    machine = await make_machine(ustas=[usta])
+    worker, answerer = await client_as(await make_user()), await client_as(usta)
+    qid_by_answer: dict[str, int] = {}
+    for text in ("Enerjiyi kesin, elektrotu sökün.", "Elektrotu eğeleyin.", "Elektrot kapağını açın."):
+        qid = (await worker.post(f"/api/machines/{machine.id}/questions", json={"question": "Elektrot nasıl?"})).json()
+        await answerer.post(f"/api/questions/{qid['id']}/answer", data={"text": text})
+        qid_by_answer[text] = qid["id"]
+    await ctx.jobs.drain(ctx)
+    c = await client_as(await make_user())
+    question = {"question": "Elektrot nasıl değiştirilir?"}
+
+    monkeypatch.setattr(ctx.settings, "ask_top_k", 1)
+    assert (await c.post(f"/api/machines/{machine.id}/ask", json=question)).json()["status"] == "answered"
+    assert len(ai.llm.sources) == 1
+
+    monkeypatch.setattr(ctx.settings, "ask_top_k", 2)
+    ai.llm.draft = AnswerDraft(found=True, answer="İkinci kaynağa göre [2]", source_ids=[2])
+    res = (await c.post(f"/api/machines/{machine.id}/ask", json=question)).json()
+    assert len(ai.llm.sources) == 2
+    picked = next(qid for text, qid in qid_by_answer.items() if text in ai.llm.sources[1])
+    assert [s["question_id"] for s in res["sources"]] == [picked]  # the LLM's choice, not the rerank's first
+
+
+async def test_a_vague_question_is_found_through_the_llm_search_rewrite(
+    client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine, ctx: AppContext, ai: FakeAI
+) -> None:
+    usta = await make_user(Role.usta, name="Mehmet Usta")
+    machine = await make_machine(ustas=[usta])
+    await _answered_question(client_as, make_user, machine, usta)
+    await ctx.jobs.drain(ctx)
+    c = await client_as(await make_user())
+    vague = {"question": "What do I do first?"}  # no word in common with the answer: rerank 0
+    assert (await c.post(f"/api/machines/{machine.id}/ask", json=vague)).json()["status"] == "not_found"
+
+    ai.llm.rewrites = ["", "Elektrot nasıl değiştirilir"]
+    res = (await c.post(f"/api/machines/{machine.id}/ask", json=vague)).json()
+    assert res["status"] == "answered" and res["sources"][0]["kind"] == "usta_answer"
+    assert "Mehmet Usta" in ai.llm.rewrite_context  # the LLM knows who "you" is
+
+    ai.llm.fail = True  # LLM down: no rewrite and no answer → not found, never an error
+    assert (await c.post(f"/api/machines/{machine.id}/ask", json=vague)).json()["status"] == "not_found"
+
+
 async def test_ask_on_machine_with_no_knowledge(
     client_as: ClientAs, make_user: MakeUser, make_machine: MakeMachine
 ) -> None:

@@ -46,8 +46,9 @@ test('opening a page calls each API once, not twice', async ({ page }) => {
   expect(count('GET /alerts')).toBe(1);
 });
 
-test('worker switches the site language to Arabic from the header, searching by name (KAN-46)', async ({ page }) => {
-  const api = await mockBackend(page, { role: 'worker' });
+test('worker switches the site language to Arabic from the header, searching by name, and the UI follows (KAN-46)', async ({ page }) => {
+  const ui = { language: 'ar', dir: 'rtl', texts: { 'Çıkış yap': 'تسجيل الخروج' } };
+  const api = await mockBackend(page, { role: 'worker', routes: { 'POST /ui-texts': ui } });
   await page.goto('/m/1');
   const menu = page.getByRole('button', { name: 'Site dili' });
   await menu.click();
@@ -56,6 +57,9 @@ test('worker switches the site language to Arabic from the header, searching by 
   await page.getByRole('option', { name: /العربية/ }).click();
   await expect(menu).toHaveText(/AR/);
   expect(api.calls.find((c) => c.key === 'PATCH /me/language')?.body).toEqual({ language: 'ar' });
+  await expect(page.getByRole('button', { name: 'تسجيل الخروج' })).toBeVisible(); // UI texts in Arabic
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  expect(api.calls.find((c) => c.key === 'POST /ui-texts')?.body).toMatchObject({ texts: expect.arrayContaining(['Çıkış yap']) });
 });
 
 test('ask the machine → answer with sources → video opens at that second (KAN-61)', async ({ page }) => {
@@ -78,7 +82,7 @@ test('nothing found → Ustaya sor → Sorularım (KAN-62)', async ({ page }) =>
   await page.getByRole('button', { name: 'Sor' }).click();
   await expect(page.getByText('cevap bulunamadı', { exact: false })).toBeVisible();
   await page.getByRole('button', { name: /Ustaya sor/ }).click();
-  await expect(page.getByText(/Mehmet Usta, Hasan Usta kişisine iletildi/)).toBeVisible();
+  await expect(page.getByText(/Soru iletildi: Mehmet Usta, Hasan Usta\./)).toBeVisible();
   expect(api.calls.find((c) => c.key === 'POST /machines/1/questions')?.body).toEqual({ question: 'Kesimin altında çapak oluşuyor' });
   await page.getByRole('link', { name: 'Sorularım →' }).click();
   await expect(page.getByText('Açık')).toBeVisible();

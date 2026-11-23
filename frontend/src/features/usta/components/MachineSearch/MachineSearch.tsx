@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import type { ApiState, MachineHit } from '../../../../api';
 import { AsyncView } from '../../../../components/AsyncView';
 import { EmptyState } from '../../../../components/EmptyState';
+import { useT } from '../../../../i18n';
 
 interface MachineSearchProps {
   query: string;
@@ -12,16 +13,17 @@ interface MachineSearchProps {
 
 /** Find any machine (the backend searches code, name, serial and location) and open its page. */
 export function MachineSearch({ query, onQueryChange, results, onRetry }: MachineSearchProps) {
+  const t = useT();
   return (
     <div className="card stack">
       <div className="field">
-        <label htmlFor="machine-q">Makine ara</label>
-        <input id="machine-q" type="search" placeholder="Kod, ad veya konum…" value={query} onChange={(e) => onQueryChange(e.target.value)} />
+        <label htmlFor="machine-q">{t('Makine ara')}</label>
+        <input id="machine-q" type="search" placeholder={t('Kod, ad veya konum…')} value={query} onChange={(e) => onQueryChange(e.target.value)} />
       </div>
       <AsyncView state={results} onRetry={onRetry}>
         {(hits) =>
           hits.length === 0 ? (
-            <EmptyState message="Bu aramayla makine bulunamadı." />
+            <EmptyState message={t('Bu aramayla makine bulunamadı.')} />
           ) : (
             <div className="chips">
               {hits.map((m) => (
