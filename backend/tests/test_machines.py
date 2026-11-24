@@ -274,6 +274,17 @@ async def test_usta_adds_a_machine_for_an_unknown_qr_and_scans_find_it(
     assert (await worker.get("/api/machines/lookup", params={"code": stale})).json() == {"id": second.json()["id"]}
 
 
+async def test_a_gs1_data_matrix_on_a_box_works_like_a_qr(client_as: ClientAs, make_user: MakeUser) -> None:
+    """The scanner reads Data Matrix too: a medicine box's GS1 code (as ZXing returns it, with the invisible
+    group separator) adds a machine and finds it again (2026-11-25)."""
+    usta = await client_as(await make_user(Role.usta))
+    gs1 = "01086801995997012136000056729737\x1d1729123110601100670"
+    machine_id = (await usta.post("/api/machines", json={**NEW, "qr_text": gs1})).json()["id"]
+    assert (await usta.get(f"/api/machines/{machine_id}")).json()["machine"]["code"] == code_for_qr(gs1)
+    worker = await client_as(await make_user())
+    assert (await worker.get("/api/machines/lookup", params={"code": gs1})).json() == {"id": machine_id}
+
+
 async def test_a_qr_belongs_to_one_machine(client_as: ClientAs, make_user: MakeUser) -> None:
     usta = await client_as(await make_user(Role.usta))
     assert (await usta.post("/api/machines", json={**NEW, "qr_text": "TAG-1"})).status_code == 201

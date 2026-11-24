@@ -1,7 +1,10 @@
 import { beforeEach, vi } from 'vitest';
 
 const prepare = vi.fn(async () => ({}));
-class ZxingDetector {}
+class ZxingDetector {
+  readonly options: unknown;
+  constructor(options?: unknown) { this.options = options; }
+}
 vi.mock('barcode-detector/ponyfill', () => ({ BarcodeDetector: ZxingDetector, prepareZXingModule: prepare }));
 vi.mock('zxing-wasm/reader/zxing_reader.wasm?url', () => ({ default: '/assets/zxing_reader-abc.wasm' }));
 
@@ -14,18 +17,26 @@ describe('installZxing', () => {
   it('installs ZXing as BarcodeDetector where the browser has none, with the .wasm from our own server', async () => {
     Reflect.deleteProperty(window, 'BarcodeDetector');
     await (await load())();
-    expect(Reflect.get(window, 'BarcodeDetector')).toBe(ZxingDetector);
+    const Installed = Reflect.get(window, 'BarcodeDetector') as new (o?: unknown) => ZxingDetector;
+    expect(new Installed()).toBeInstanceOf(ZxingDetector);
     const options = prepare.mock.calls.at(0)?.at(0) as { overrides: { locateFile: (p: string, prefix: string) => string } } | undefined;
     expect(options?.overrides.locateFile('zxing_reader.wasm', 'https://cdn.example/')).toBe('/assets/zxing_reader-abc.wasm');
     Reflect.deleteProperty(window, 'BarcodeDetector');
   });
 
-  it('keeps the native BarcodeDetector (Android Chrome)', async () => {
+  it('reads Data Matrix, Aztec and PDF417 too, although qr-scanner asks for QR only', async () => {
+    Reflect.deleteProperty(window, 'BarcodeDetector');
+    await (await load())();
+    const Installed = Reflect.get(window, 'BarcodeDetector') as new (o?: unknown) => ZxingDetector;
+    expect(new Installed({ formats: ['qr_code'] }).options).toEqual({ formats: ['qr_code', 'data_matrix', 'aztec', 'pdf417'] });
+    Reflect.deleteProperty(window, 'BarcodeDetector');
+  });
+
+  it('replaces the native BarcodeDetector too (Android Chrome): the same text for the same code on every phone', async () => {
     class Native {}
     vi.stubGlobal('BarcodeDetector', Native);
     await (await load())();
-    expect(Reflect.get(window, 'BarcodeDetector')).toBe(Native);
-    expect(prepare).not.toHaveBeenCalled();
+    expect(new (Reflect.get(window, 'BarcodeDetector') as new () => object)()).toBeInstanceOf(ZxingDetector);
   });
 
   it('never rejects: if the .wasm cannot load, qr-scanner keeps its own decoder', async () => {

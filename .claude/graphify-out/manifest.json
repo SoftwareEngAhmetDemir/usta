@@ -738,9 +738,9 @@
     "semantic_hash": ""
   },
   "backend/tests/test_machines.py": {
-    "mtime": 1795480110.6445124,
-    "seen": 1795480279.046071,
-    "ast_hash": "d4ceb991b68296c4dbcee8ba80b2c474",
+    "mtime": 1795561315.6669476,
+    "seen": 1795561375.9077172,
+    "ast_hash": "f403665be152fb46cf11ef40aa8bc52a",
     "semantic_hash": ""
   },
   "backend/tests/test_maintenance.py": {
@@ -834,8 +834,8 @@
     "semantic_hash": ""
   },
   "frontend/package.json": {
-    "mtime": 1795479042.0376482,
-    "seen": 1795479769.1145291,
+    "mtime": 1795561070.0007074,
+    "seen": 1795561375.907733,
     "ast_hash": "049492061c2e20ddbd79c2ea9b02c27c",
     "semantic_hash": ""
   },
@@ -2406,8 +2406,8 @@
     "semantic_hash": ""
   },
   "frontend/src/features/scan/ScanPage.test.tsx": {
-    "mtime": 1795479590.4358454,
-    "seen": 1795479769.114822,
+    "mtime": 1795561070.0016968,
+    "seen": 1795561375.908,
     "ast_hash": "7ab0b7b6fbd15f2401857472b9242d88",
     "semantic_hash": ""
   },
@@ -2436,14 +2436,14 @@
     "semantic_hash": ""
   },
   "frontend/src/features/scan/components/QrScanner/QrScanner.test.tsx": {
-    "mtime": 1795479042.0406792,
-    "seen": 1795479769.1148312,
+    "mtime": 1795561070.0038629,
+    "seen": 1795561375.90801,
     "ast_hash": "f0611c13fd3a47758558c5778117689e",
     "semantic_hash": ""
   },
   "frontend/src/features/scan/components/QrScanner/QrScanner.tsx": {
-    "mtime": 1795479042.0409758,
-    "seen": 1795479769.114832,
+    "mtime": 1795561070.0043397,
+    "seen": 1795561375.908011,
     "ast_hash": "e712b100bafa9134877b01b21b91b338",
     "semantic_hash": ""
   },
@@ -2454,8 +2454,8 @@
     "semantic_hash": ""
   },
   "frontend/src/features/scan/hooks/useQrScanner.ts": {
-    "mtime": 1795479042.041489,
-    "seen": 1795479769.1148338,
+    "mtime": 1795561070.005007,
+    "seen": 1795561375.908012,
     "ast_hash": "64d8bd69855afa1217ee9a3574ef28d2",
     "semantic_hash": ""
   },
@@ -2736,14 +2736,14 @@
     "semantic_hash": ""
   },
   "frontend/src/test/setup.ts": {
-    "mtime": 1795479042.0442824,
-    "seen": 1795479769.114892,
+    "mtime": 1795561070.0071704,
+    "seen": 1795561375.908073,
     "ast_hash": "af990ec8bfacb847ee2ffaf9952633da",
     "semantic_hash": ""
   },
   "frontend/src/test/utils.tsx": {
-    "mtime": 1795479042.0446858,
-    "seen": 1795479769.114893,
+    "mtime": 1795561070.0077305,
+    "seen": 1795561375.908074,
     "ast_hash": "e666b870817c9cd8d405b47356cbefab",
     "semantic_hash": ""
   },
@@ -2808,9 +2808,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1795480276.7113729,
-    "seen": 1795480279.046495,
-    "ast_hash": "bed82c707333264c848719360512772d",
+    "mtime": 1795561373.7164905,
+    "seen": 1795561375.908083,
+    "ast_hash": "728150cbe1a064c83798cfabbf536503",
     "semantic_hash": ""
   },
   "README.md": {
@@ -3258,32 +3258,32 @@
     "semantic_hash": ""
   },
   "frontend/src/test/fakeQrScanner.ts": {
-    "mtime": 1795479042.044051,
-    "seen": 1795479769.114891,
+    "mtime": 1795561070.0067172,
+    "seen": 1795561375.9080708,
     "ast_hash": "ad14bbdd984104aaad552fe86909259a",
     "semantic_hash": ""
   },
   "frontend/src/features/scan/zxing.test.ts": {
-    "mtime": 1795479042.0417109,
-    "seen": 1795479769.114836,
-    "ast_hash": "a17d7f77eab7d56583e2c0b9f8c19929",
+    "mtime": 1795561188.007053,
+    "seen": 1795561375.908014,
+    "ast_hash": "576ed081b4ed213be61dbf55beb89015",
     "semantic_hash": ""
   },
   "frontend/src/features/scan/zxing.ts": {
-    "mtime": 1795479042.0419006,
-    "seen": 1795479769.114837,
-    "ast_hash": "85e8bdf55f2c176f7df270ef392e70fb",
+    "mtime": 1795561178.61302,
+    "seen": 1795561375.908015,
+    "ast_hash": "3f6b25e0161a969c43e228ba4eae247a",
     "semantic_hash": ""
   },
   "frontend/src/features/scan/camera.test.ts": {
-    "mtime": 1795479042.0392597,
-    "seen": 1795479769.1148238,
+    "mtime": 1795561070.002682,
+    "seen": 1795561375.9080021,
     "ast_hash": "b2519cdfd76189d7788792d8121ffe88",
     "semantic_hash": ""
   },
   "frontend/src/features/scan/camera.ts": {
-    "mtime": 1795479042.0394666,
-    "seen": 1795479769.114825,
+    "mtime": 1795561070.0032456,
+    "seen": 1795561375.908003,
     "ast_hash": "1d1e97a9428249f094588c4f302b7315",
     "semantic_hash": ""
   },
@@ -3306,8 +3306,8 @@
     "semantic_hash": ""
   },
   "frontend/package-lock.json": {
-    "mtime": 1795479042.0372326,
-    "seen": 1795479769.114908,
+    "mtime": 1795561168.9947941,
+    "seen": 1795561375.9080892,
     "ast_hash": "e694ae0980e32c341c212f9703626ad7",
     "semantic_hash": ""
   }
