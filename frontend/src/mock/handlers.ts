@@ -118,7 +118,7 @@ export function handle(db: MockDb, req: MockRequest): MockResponse {
     case 'GET /machines/lookup': {
       const code = query.get('code')?.trim() ?? '';
       const link = /\/m\/(\d+)\/?$/.exec(code); // scanned QR URL, like the backend
-      const m = db.machines.find((x) => (link ? x.id === Number(link[1]) : x.code === code));
+      const m = db.machines.find((x) => x.code === code || (link !== null && x.id === Number(link[1])) || db.qrTexts?.[code] === x.id);
       return m ? ok({ id: m.id }) : fail(404, 'Bu kodla makine bulunamadı.');
     }
     case 'GET /machines': {
@@ -127,11 +127,19 @@ export function handle(db: MockDb, req: MockRequest): MockResponse {
       const hits = db.machines.filter((m) => [m.code, m.name, m.serial, m.location].some((t) => t.toLocaleLowerCase('tr').includes(q)));
       return ok(hits.map((m) => ({ id: m.id, code: m.code, name: m.name, location: m.location })));
     }
+    case 'POST /machines/code-for-qr': { // like the backend's code_for_qr, with a simpler hash
+      const qr = field(body, 'qr_text').trim();
+      const hash = [...qr].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7).toString(16).toUpperCase().padStart(8, '0');
+      return ok({ code: qr.length <= 40 && /^[\p{L}\p{N}_./-]+(?: [\p{L}\p{N}_./-]+)*$/u.test(qr) ? qr.toUpperCase() : `QR-${hash}` });
+    }
     case 'POST /machines': {
       if (me.role !== 'usta' && me.role !== 'patron') return fail(403, 'Bu işlem için yetkiniz yok.');
       const code = field(body, 'code').trim().toUpperCase();
       if (db.machines.some((m) => m.code === code)) return fail(409, 'Bu kodla bir makine zaten var.');
+      const qr = body && typeof body === 'object' && 'qr_text' in body && typeof body.qr_text === 'string' ? body.qr_text.trim() : '';
+      if (qr && db.qrTexts?.[qr] !== undefined) return fail(409, 'Bu QR zaten bir makineye bağlı (arşivlenmiş olabilir).');
       const newId = db.nextId++;
+      if (qr) db.qrTexts = { ...db.qrTexts, [qr]: newId };
       const machine = { id: newId, code, name: field(body, 'name'), type: field(body, 'type'), model: field(body, 'model'), serial: field(body, 'serial'), location: field(body, 'location'), photo_url: null };
       const ustas = me.role === 'usta' ? [{ id: me.id, name: me.name }] : [];
       db.pages[newId] = { ...fx.machinePage, machine, ustas, videos: [], external_videos: [], documents: [], maintenance: [], questions: [] };

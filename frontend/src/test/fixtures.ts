@@ -6,10 +6,10 @@ import type {
 } from '../api/types';
 
 const ME: Record<Role, Me> = {
-  worker: { id: 10, name: 'Yusuf', role: 'worker', language: 'tr', language_name: 'Türkçe', authorized: false, authorization_note: null },
-  usta: { id: 7, name: 'Mehmet Usta', role: 'usta', language: 'tr', language_name: 'Türkçe', authorized: false, authorization_note: null },
-  technician: { id: 5, name: 'Emre K.', role: 'technician', language: 'tr', language_name: 'Türkçe', authorized: true, authorization_note: 'Forklift periyodik bakım yetki belgesi · 2027-03' },
-  patron: { id: 1, name: 'İşletme Sahibi', role: 'patron', language: 'tr', language_name: 'Türkçe', authorized: false, authorization_note: null },
+  worker: { id: 10, name: 'Yusuf', role: 'worker', language: 'tr', language_name: 'Türkçe', authorized: false, authorization_note: null, can_add_machines: false },
+  usta: { id: 7, name: 'Mehmet Usta', role: 'usta', language: 'tr', language_name: 'Türkçe', authorized: false, authorization_note: null, can_add_machines: true },
+  technician: { id: 5, name: 'Emre K.', role: 'technician', language: 'tr', language_name: 'Türkçe', authorized: true, authorization_note: 'Forklift periyodik bakım yetki belgesi · 2027-03', can_add_machines: false },
+  patron: { id: 1, name: 'İşletme Sahibi', role: 'patron', language: 'tr', language_name: 'Türkçe', authorized: false, authorization_note: null, can_add_machines: true },
 };
 export const languages: Language[] = [
   { code: 'tr', name: 'Türkçe', tr_name: 'Türkçe', dir: 'ltr' },

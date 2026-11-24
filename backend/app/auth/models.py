@@ -14,6 +14,10 @@ class Role(StrEnum):
     patron = "patron"
 
 
+# Who may add machines (KAN-27, user's decision 2026-11-21): the endpoint checks it, `Me` tells the frontend.
+MACHINE_ADDERS = (Role.usta, Role.patron)
+
+
 class User(Base):
     __tablename__ = "users"
 

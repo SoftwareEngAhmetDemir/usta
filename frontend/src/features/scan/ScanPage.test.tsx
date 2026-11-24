@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { me } from '../../test/fixtures';
 import { fakeQr } from '../../test/fakeQrScanner';
 import { mockApi, renderAuthed, stubQrCamera } from '../../test/utils';
+import { ApiError } from '../../api';
 import { ScanPage } from './ScanPage';
 import { SAME_QR_PAUSE_MS } from './hooks/useQrScanner';
 
@@ -56,6 +57,35 @@ describe('ScanPage', () => {
     expect(lookups()).toBe(1);
     expect(await screen.findByRole('dialog', {}, { timeout: SAME_QR_PAUSE_MS + 1000 })).toBeInTheDocument();
     expect(lookups()).toBe(2);
+  });
+  it('offers an usta to add a machine with an unknown QR, and hands the QR to the form', async () => {
+    stubQrCamera('TAG-77');
+    mockApi({ 'GET /auth/me': me('usta') });
+    renderAuthed(<ScanPage />, '/scan', '/scan');
+    expect(await screen.findByRole('dialog', { name: 'Yeni QR' })).toHaveTextContent('TAG-77');
+    await userEvent.click(screen.getByRole('button', { name: 'Evet, makine ekle' }));
+    expect(await screen.findByText('other page /machines/new')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'route state' })).toHaveTextContent('{"qr":"TAG-77"}');
+  });
+  it('offers an usta to add a machine with an unknown typed code, as its code', async () => {
+    mockApi({ 'GET /auth/me': me('usta') });
+    renderAuthed(<ScanPage />, '/scan', '/scan');
+    await userEvent.type(await screen.findByLabelText(/makine kodunu/), 'pk-200');
+    await userEvent.click(screen.getByRole('button', { name: 'Aç' }));
+    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Yeni makine kodu' })).getByRole('button', { name: 'Evet, makine ekle' }));
+    expect(screen.getByRole('status', { name: 'route state' })).toHaveTextContent('{"code":"PK-200"}');
+  });
+  it('never offers adding to a worker, nor for a QR too long to keep', async () => {
+    stubQrCamera('TAG-77');
+    mockApi({ 'GET /auth/me': me('worker') });
+    const { unmount } = renderAuthed(<ScanPage />, '/scan', '/scan');
+    expect(await screen.findByRole('dialog', { name: 'Makine bulunamadı' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Evet, makine ekle' })).not.toBeInTheDocument();
+    unmount();
+    stubQrCamera('x'.repeat(600));
+    mockApi({ 'GET /auth/me': me('usta'), [`GET /machines/lookup?code=${'x'.repeat(600)}`]: () => { throw new ApiError(422, null); } });
+    renderAuthed(<ScanPage />, '/scan', '/scan');
+    expect(await screen.findByRole('dialog', { name: 'Makine bulunamadı' })).toBeInTheDocument();
   });
   it('keeps other errors (network down) inline', async () => {
     mockApi({ 'GET /auth/me': me('worker'), 'GET /machines/lookup?code=PK-1': () => { throw new TypeError('Failed to fetch'); } });

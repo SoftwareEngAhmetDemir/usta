@@ -23,6 +23,7 @@ async def test_register_creates_a_worker_and_logs_in(client: AsyncClient, db: As
         "language_name": "Türkçe",
         "authorized": False,
         "authorization_note": None,
+        "can_add_machines": False,
     }
     cookie = res.headers["set-cookie"]
     assert f"{SESSION_COOKIE}=" in cookie and "HttpOnly" in cookie and "SameSite=lax" in cookie
@@ -36,6 +37,7 @@ async def test_register_as_usta(client: AsyncClient) -> None:
     assert res.status_code == 201
     assert res.json()["role"] == "usta"
     assert (await client.get("/api/auth/me")).json()["role"] == "usta"
+    assert (await client.get("/api/auth/me")).json()["can_add_machines"] is True  # the scan page offers "add it?"
 
 
 async def test_register_cannot_pick_technician_or_patron(client: AsyncClient, db: AsyncSession) -> None:

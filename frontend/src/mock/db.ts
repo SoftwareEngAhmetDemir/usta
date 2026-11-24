@@ -22,6 +22,7 @@ export interface MockDb {
   uploads: Record<number, VideoProcessing>;
   preparing: Record<string, number>; // `${videoId}:${lang}` -> finished steps
   nextId: number;
+  qrTexts?: Record<string, number>; // QR text already on a machine → its id (missing in states saved before)
 }
 
 function forkliftPage(): MachinePage {

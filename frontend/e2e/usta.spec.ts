@@ -73,3 +73,30 @@ test('usta adds a document to their machine from the machine page (KAN-33)', asy
   await expect(page).toHaveURL(/\/m\/1$/);
   expect(api.calls.filter((c) => c.key === 'POST /machines/1/documents')).toHaveLength(1);
 });
+
+test('usta scans an unknown code, adds the machine from the dialog and lands on its page (KAN-29, KAN-27)', async ({ page }) => {
+  const api = await mockBackend(page, { role: 'usta', routes: { 'POST /machines': { id: 1 } } });
+  await page.goto('/scan');
+  await page.getByLabel(/makine kodunu/).fill('pk-200');
+  await page.getByRole('button', { name: 'Aç' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Yeni makine kodu' });
+  await expect(dialog).toContainText('PK-200');
+  await dialog.getByRole('button', { name: 'Evet, makine ekle' }).click();
+  await expect(page).toHaveURL(/\/machines\/new$/);
+  await expect(page.getByLabel(/Makine kodu/)).toHaveValue('PK-200');
+  await page.getByLabel(/Makine adı/).fill('Hidrolik Pres');
+  await page.getByRole('button', { name: 'Makineyi ekle' }).click();
+  await expect(page).toHaveURL(/\/m\/1$/);
+  expect(api.calls.find((c) => c.key === 'POST /machines')?.body).toMatchObject({ code: 'PK-200', name: 'Hidrolik Pres' });
+  await page.goBack(); // the form was replaced by the machine page: back returns to the scanner
+  await expect(page).toHaveURL(/\/scan$/);
+});
+
+test('worker scanning an unknown code is not offered to add a machine', async ({ page }) => {
+  await mockBackend(page, { role: 'worker' });
+  await page.goto('/scan');
+  await page.getByLabel(/makine kodunu/).fill('pk-200');
+  await page.getByRole('button', { name: 'Aç' }).click();
+  await expect(page.getByRole('dialog', { name: 'Makine bulunamadı' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Evet, makine ekle' })).toHaveCount(0);
+});

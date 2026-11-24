@@ -26,6 +26,7 @@ export interface Me {
   language_name: string; // its native name
   authorized: boolean;
   authorization_note: string | null;
+  can_add_machines: boolean; // usta / patron: an unknown scanned QR offers "add a machine with it"
 }
 
 export interface LoginIn {
@@ -158,6 +159,7 @@ export interface MachineIn {
   model: string;
   serial: string;
   location: string;
+  qr_text?: string; // a scanned QR that belongs to no machine yet: later scans open this machine
 }
 
 export interface MachinePage {

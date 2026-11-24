@@ -27,6 +27,9 @@ class Machine(Base):
     model: Mapped[str] = mapped_column(String(120), default="")
     serial: Mapped[str] = mapped_column(String(120), default="")
     location: Mapped[str] = mapped_column(String(200), default="")
+    # Text of a QR that was already on the machine (a pre-printed tag) when an usta added it by scanning; the scan
+    # page finds the machine by it. Binary collation: QR text is matched exactly, not case/accent-insensitively.
+    qr_text: Mapped[str | None] = mapped_column(String(500, collation="utf8mb4_bin"), unique=True, default=None)
     photo: Mapped[str | None] = mapped_column(String(255), default=None)  # path under uploads/
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     # KAN-27: "removing" a machine archives it: gone from lists, history kept; clear it in /admin to restore.

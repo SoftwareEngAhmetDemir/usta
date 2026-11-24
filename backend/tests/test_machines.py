@@ -10,6 +10,7 @@ from app.auth.models import Role, User
 from app.context import AppContext
 from app.deps import public_url
 from app.machines.models import Machine
+from app.machines.qr import code_for_qr
 from app.machines.service import embed_url
 from tests.conftest import ClientAs
 
@@ -251,3 +252,61 @@ async def test_qr_url_is_the_address_the_sticker_was_downloaded_from(ctx: AppCon
     assert public_url(_request({"host": "192.168.1.5:5173"}), auto) == "http://192.168.1.5:5173"
     fixed = replace(ctx, settings=ctx.settings.model_copy(update={"public_url": "https://usta.example"}))
     assert public_url(_request(tunnel), fixed) == "https://usta.example"  # PUBLIC_URL wins when set
+
+
+async def test_usta_adds_a_machine_for_an_unknown_qr_and_scans_find_it(
+    client_as: ClientAs, make_user: MakeUser
+) -> None:
+    """KAN-29/27: an usta scans a QR that belongs to no machine, adds the machine with it; the next scan opens it."""
+    usta = await client_as(await make_user(Role.usta))
+    tag = "{ tarih='2026-11-22', ettn='0906e343' }"  # any text a pre-printed tag may hold
+    assert (await usta.get("/api/machines/lookup", params={"code": tag})).status_code == 404
+    res = await usta.post("/api/machines", json={**NEW, "qr_text": f"  {tag} "})
+    assert res.status_code == 201
+    machine_id = res.json()["id"]
+    worker = await client_as(await make_user())
+    assert (await worker.get("/api/machines/lookup", params={"code": tag})).json() == {"id": machine_id}
+    upper = await worker.get("/api/machines/lookup", params={"code": tag.upper()})
+    assert upper.status_code == 404  # QR text is matched exactly
+    # our own sticker link of a machine that does not exist (any more) can be taken over too
+    stale = "https://old-tunnel.example/m/999999"
+    second = await usta.post("/api/machines", json={**NEW, "code": "CNC-8", "qr_text": stale})
+    assert (await worker.get("/api/machines/lookup", params={"code": stale})).json() == {"id": second.json()["id"]}
+
+
+async def test_a_qr_belongs_to_one_machine(client_as: ClientAs, make_user: MakeUser) -> None:
+    usta = await client_as(await make_user(Role.usta))
+    assert (await usta.post("/api/machines", json={**NEW, "qr_text": "TAG-1"})).status_code == 201
+    again = await usta.post("/api/machines", json={**NEW, "code": "CNC-9", "qr_text": "TAG-1"})
+    assert again.status_code == 409
+    assert again.json() == {"detail": "Bu QR zaten bir makineye bağlı (arşivlenmiş olabilir)."}
+    too_long = await usta.post("/api/machines", json={**NEW, "code": "CNC-9", "qr_text": "x" * 501})
+    assert too_long.status_code == 422
+
+
+def test_code_for_qr_uses_a_code_like_qr_else_a_short_stable_code() -> None:
+    assert code_for_qr("  tag-77 ") == "TAG-77"
+    assert code_for_qr("Kazan 2/B") == "KAZAN 2/B"
+    bill = "{ tarih='2026-11-22', ettn='0906e343' }"
+    code = code_for_qr(bill)
+    assert code == code_for_qr(bill) and len(code) == 11 and code.startswith("QR-")
+    for not_code_like in ("https://x.example/m/9", "A" * 41, "two  spaces", "TAG\n77"):
+        assert code_for_qr(not_code_like).startswith("QR-"), not_code_like
+    assert code_for_qr("TAG-1") != code_for_qr("TAG-2") and code_for_qr("x" * 50) != code_for_qr("x" * 51)
+
+
+async def test_the_code_of_a_machine_added_with_a_qr_comes_from_the_qr(
+    client_as: ClientAs, make_user: MakeUser
+) -> None:
+    usta = await client_as(await make_user(Role.usta))
+    bill = "{ tarih='2026-11-22', ettn='0906e343' }"
+    preview = await usta.post("/api/machines/code-for-qr", json={"qr_text": bill})
+    assert preview.json() == {"code": code_for_qr(bill)}
+    # whatever code the client sends with a QR, the machine gets the one the form showed
+    machine_id = (await usta.post("/api/machines", json={**NEW, "code": "HACK-1", "qr_text": bill})).json()["id"]
+    assert (await usta.get(f"/api/machines/{machine_id}")).json()["machine"]["code"] == code_for_qr(bill)
+    worker = await client_as(await make_user())
+    assert (await worker.get("/api/machines/lookup", params={"code": code_for_qr(bill)})).json() == {"id": machine_id}
+    assert (await worker.post("/api/machines/code-for-qr", json={"qr_text": bill})).status_code == 403
+    no_code = await usta.post("/api/machines", json={**NEW, "code": " "})
+    assert no_code.status_code == 422 and no_code.json() == {"detail": "Makine kodu gerekli."}

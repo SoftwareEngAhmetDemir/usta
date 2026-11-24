@@ -1,6 +1,8 @@
 """QR stickers (KAN-29/30). The QR holds the machine page URL, so any phone camera opens it."""
 
+import hashlib
 import io
+import re
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -21,6 +23,20 @@ _FONT_FILES = [
     "/Library/Fonts/Arial Unicode.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
 ]
+
+
+# Reads like a machine code someone could type: letters (any alphabet), digits, _ . / -, single spaces between.
+_CODE_LIKE = re.compile(r"[\w./-]+(?: [\w./-]+)*")
+
+
+def code_for_qr(qr_text: str) -> str:
+    """Machine code of a machine added with a QR that was already on it (KAN-27; the form shows it locked): the QR
+    text itself when it reads like a code and fits (≤40), else a short stable code from it ("QR-7F3A9C2B"), short
+    enough to type on the scan page. The same QR always gives the same code."""
+    text = qr_text.strip()
+    if len(text) <= 40 and _CODE_LIKE.fullmatch(text):
+        return text.upper()
+    return "QR-" + hashlib.sha256(text.encode()).hexdigest()[:8].upper()
 
 
 def machine_url(public_url: str, machine_id: int) -> str:

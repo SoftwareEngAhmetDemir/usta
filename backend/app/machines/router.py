@@ -2,11 +2,11 @@ import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from pydantic import AnyHttpUrl, BaseModel, StringConstraints
-from sqlalchemy import select
+from pydantic import AnyHttpUrl, BaseModel, StringConstraints, model_validator
+from sqlalchemy import or_, select
 
 from app.auth.deps import CurrentUser, PatronUser, require_role
-from app.auth.models import Role, User
+from app.auth.models import MACHINE_ADDERS, Role, User
 from app.core.schemas import utcnow
 from app.deps import PublicUrl, SessionDep, forbidden, not_found
 from app.machines import qr
@@ -32,16 +32,38 @@ class MachineHit(MachineRef):
 
 
 Text = Annotated[str, StringConstraints(strip_whitespace=True, max_length=120)]
-MachineAdder = Annotated[User, Depends(require_role(Role.usta, Role.patron))]
+MachineAdder = Annotated[User, Depends(require_role(*MACHINE_ADDERS))]
+
+
+QrText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
 
 
 class MachineIn(BaseModel):
-    code: Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True, min_length=1, max_length=40)]
+    # Ignored when `qr_text` is given: the code then comes from the QR (`qr.code_for_qr`), as the form shows it.
+    code: Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True, max_length=40)] = ""
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
     type: Text = ""
     model: Text = ""
     serial: Text = ""
     location: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] = ""
+    # The scanned QR that belongs to no machine yet (scan page → "add it?"); later scans find the machine by it.
+    qr_text: QrText | None = None
+
+    @model_validator(mode="after")
+    def _code(self) -> "MachineIn":
+        if self.qr_text:
+            self.code = qr.code_for_qr(self.qr_text)
+        elif not self.code:
+            raise ValueError("Makine kodu gerekli.")
+        return self
+
+
+class QrIn(BaseModel):
+    qr_text: QrText
+
+
+class MachineCode(BaseModel):
+    code: str
 
 
 class ExternalVideoIn(BaseModel):
@@ -58,12 +80,12 @@ MACHINE_LINK = re.compile(r"/m/(\d+)/?$")
 async def lookup(
     code: Annotated[str, Query(min_length=1, max_length=500)], _: CurrentUser, db: SessionDep
 ) -> MachineId:
-    """The QR text read by the in-page scanner (`<PUBLIC_URL>/m/<id>`, any host, so old stickers keep working),
-    or the code printed under the QR (KAN-29)."""
+    """The QR text read by the in-page scanner (`<PUBLIC_URL>/m/<id>`, any host, so old stickers keep working;
+    or a QR that was on the machine when it was added by scanning), or the code printed under the QR (KAN-29)."""
     text = code.strip()
     link = MACHINE_LINK.search(text)
-    found = Machine.id == int(link[1]) if link else Machine.code == text
-    machine = await db.scalar(select(Machine).where(found, Machine.archived_at.is_(None)))
+    found = or_(Machine.code == text, Machine.qr_text == text, *([Machine.id == int(link[1])] if link else []))
+    machine = await db.scalar(select(Machine).where(found, Machine.archived_at.is_(None)).limit(1))
     if machine is None:
         raise not_found("Bu kodla makine")
     return MachineId(id=machine.id)
@@ -83,12 +105,22 @@ async def search_machines(
 @router.post("/machines", response_model=MachineId, status_code=status.HTTP_201_CREATED)
 async def create_machine(body: MachineIn, user: MachineAdder, db: SessionDep) -> MachineId:
     """KAN-27: an usta or the patron adds a machine; an usta becomes the new machine's usta."""
+    # The QR first: its code comes from it, so a QR added twice would otherwise read as "code taken".
+    if body.qr_text and await db.scalar(select(Machine.id).where(Machine.qr_text == body.qr_text)) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Bu QR zaten bir makineye bağlı (arşivlenmiş olabilir).")
     if await db.scalar(select(Machine.id).where(Machine.code == body.code)) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "Bu kodla bir makine zaten var.")
     machine = Machine(**body.model_dump(), ustas=[user] if user.role == Role.usta else [])
     db.add(machine)
     await db.commit()
     return MachineId(id=machine.id)
+
+
+@router.post("/machines/code-for-qr", response_model=MachineCode)
+async def code_for_qr(body: QrIn, _: MachineAdder) -> MachineCode:
+    """The code a machine added with this scanned QR gets, shown locked in the form (POST: QR text stays out of
+    URLs and access logs)."""
+    return MachineCode(code=qr.code_for_qr(body.qr_text))
 
 
 @router.post("/machines/{machine_id}/archive", status_code=status.HTTP_204_NO_CONTENT)
