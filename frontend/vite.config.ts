@@ -19,7 +19,8 @@ export default defineConfig(({ mode }) => ({
       mode === 'mock'
         ? undefined
         : {
-            '/api': { target: backend, ws: true, changeOrigin: true },
+            // xfwd: X-Forwarded-Host/-Proto tell the backend the address the browser used, so QR stickers hold it.
+            '/api': { target: backend, ws: true, changeOrigin: true, xfwd: true },
             '/uploads': { target: backend, changeOrigin: true },
             // SQLAdmin (KAN-41) builds absolute links from Host + scheme: keep the browser's host (no changeOrigin)
             // and pass http/https on, else its links jump to :8000, which a phone on the forwarded URL can't open.

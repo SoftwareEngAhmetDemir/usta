@@ -27,7 +27,7 @@ function load(language: string): Saved {
  * cannot translate, the Turkish text is shown. Also sets the page's lang and direction (Arabic: right to left).
  * shortcut: a sentence split around a value ("{n} kayıt") is translated in pieces; give such
  * sentences one text with the value at the end if word order matters in a language. */
-export function useUiTexts(language: string): { t: Translate; loading: boolean; ready: (text: string) => boolean } {
+export function useUiTexts(language: string): { t: Translate; loading: boolean; ready: (text: string) => boolean; busyNow: () => boolean } {
   const [saved, setSaved] = useState(() => load(language));
   const [pending, setPending] = useState(0);
   const [untranslatable, setUntranslatable] = useState<ReadonlySet<string>>(new Set()); // answered without a translation
@@ -35,11 +35,12 @@ export function useUiTexts(language: string): { t: Translate; loading: boolean; 
   const queue = useRef<string[]>([]);
   const quietQueue = useRef<string[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inFlight = useRef(0); // = pending, but current before React re-renders (see `busyNow`)
 
   const flush = useCallback(() => {
     timer.current = null;
     const send = (texts: string[], counts: boolean) => {
-      if (counts) setPending((n) => n + 1);
+      if (counts) { inFlight.current += 1; setPending((n) => n + 1); }
       postJson<UiTexts>('/ui-texts', { texts })
         .then((res) => {
           if (res.language !== language) return;
@@ -51,7 +52,7 @@ export function useUiTexts(language: string): { t: Translate; loading: boolean; 
           });
         })
         .catch(() => setUntranslatable((prev) => new Set([...prev, ...texts]))) // stays Turkish; asked again after a reload
-        .finally(() => { if (counts) setPending((n) => n - 1); });
+        .finally(() => { if (counts) { inFlight.current -= 1; setPending((n) => n - 1); } });
     };
     while (queue.current.length) send(queue.current.splice(0, BATCH), true);
     while (quietQueue.current.length) send(quietQueue.current.splice(0, BATCH), false);
@@ -89,5 +90,8 @@ export function useUiTexts(language: string): { t: Translate; loading: boolean; 
     (text: string) => language === 'tr' || text in saved.texts || untranslatable.has(text),
     [language, saved.texts, untranslatable],
   );
-  return { t, loading: pending > 0, ready };
+  // `loading` (state) misses texts still waiting for their 30 ms batch, and lags a render behind: on a slow phone
+  // LanguageGate's quiet timer fired in that gap and showed the page in Turkish. This asks the refs at that moment.
+  const busyNow = useCallback(() => queue.current.length > 0 || inFlight.current > 0, []);
+  return { t, loading: pending > 0, ready, busyNow };
 }

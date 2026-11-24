@@ -1,10 +1,14 @@
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 from io import BytesIO
 
 from httpx import AsyncClient
 from pypdf import PdfReader
+from starlette.requests import Request
 
 from app.auth.models import Role, User
+from app.context import AppContext
+from app.deps import public_url
 from app.machines.models import Machine
 from app.machines.service import embed_url
 from tests.conftest import ClientAs
@@ -231,3 +235,19 @@ async def test_archived_machine_leaves_lists_but_keeps_its_page(
     assert (await patron.get("/api/admin/machines")).json()["machines"] == []
     other = await make_machine()
     assert (await patron.post(f"/api/machines/{other.id}/archive")).status_code == 204
+
+
+def _request(headers: dict[str, str]) -> Request:
+    raw = [(k.encode(), v.encode()) for k, v in headers.items()]
+    return Request({"type": "http", "scheme": "http", "path": "/", "headers": raw, "server": ("localhost", 8000)})
+
+
+async def test_qr_url_is_the_address_the_sticker_was_downloaded_from(ctx: AppContext) -> None:
+    """Stickers printed from the VS Code forwarded URL must open on a phone, not point at localhost."""
+    auto = replace(ctx, settings=ctx.settings.model_copy(update={"public_url": ""}))
+    tunnel = {"host": "localhost:8000", "x-forwarded-host": "abc-5173.euw.devtunnels.ms"}
+    tunnel["x-forwarded-proto"] = "https,http"
+    assert public_url(_request(tunnel), auto) == "https://abc-5173.euw.devtunnels.ms"
+    assert public_url(_request({"host": "192.168.1.5:5173"}), auto) == "http://192.168.1.5:5173"
+    fixed = replace(ctx, settings=ctx.settings.model_copy(update={"public_url": "https://usta.example"}))
+    assert public_url(_request(tunnel), fixed) == "https://usta.example"  # PUBLIC_URL wins when set

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Starts backend (uvicorn :8000) and frontend (Vite :5173) together. Ctrl+C stops both.
+# Starts backend (uvicorn :8000) and frontend (Vite :5173) together. Ctrl+C stops both. `--phone`: see below.
 set -uo pipefail
 cd "$(dirname "$0")"
 
@@ -14,7 +14,14 @@ cd "$(dirname "$0")"
 
 (cd backend && exec .venv/bin/uvicorn app.main:app --reload --port 8000) &
 backend=$!
-(cd frontend && exec node_modules/.bin/vite) & # same as `npm run dev`, minus npm so the signal reaches Vite
+# --phone: serve a production build on :5173 (3 files) instead of Vite dev (hundreds of modules). The VS Code tunnel
+# drops some of those with 504, leaving the app blank or the QR decoder unloaded. No hot reload: rerun after changes.
+if [ "${1:-}" = "--phone" ]; then
+  (cd frontend && node_modules/.bin/vite build) || exit 1
+  (cd frontend && exec node_modules/.bin/vite preview --port 5173 --strictPort) & # same proxy as dev (preview inherits it)
+else
+  (cd frontend && exec node_modules/.bin/vite) & # same as `npm run dev`, minus npm so the signal reaches Vite
+fi
 frontend=$!
 trap 'kill -TERM $backend $frontend 2>/dev/null; wait' EXIT INT TERM
 wait

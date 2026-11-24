@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.auth.deps import CurrentUser, PatronUser, require_role
 from app.auth.models import Role, User
 from app.core.schemas import utcnow
-from app.deps import CtxDep, SessionDep, forbidden, not_found
+from app.deps import PublicUrl, SessionDep, forbidden, not_found
 from app.machines import qr
 from app.machines.models import ExternalSource, ExternalVideo, Machine
 from app.machines.permissions import actions
@@ -145,17 +145,17 @@ async def _qr_machine(db: SessionDep, machine_id: int, user: User) -> Machine:
 
 
 @router.get("/machines/{machine_id}/qr.svg")
-async def machine_qr(machine_id: int, user: CurrentUser, db: SessionDep, ctx: CtxDep) -> Response:
+async def machine_qr(machine_id: int, user: CurrentUser, db: SessionDep, base: PublicUrl) -> Response:
     machine = await _qr_machine(db, machine_id, user)
-    return Response(qr.svg(qr.machine_url(ctx.settings.public_url, machine.id)), media_type="image/svg+xml")
+    return Response(qr.svg(qr.machine_url(base, machine.id)), media_type="image/svg+xml")
 
 
 @router.get("/machines/{machine_id}/sticker.pdf")
-async def machine_sticker(machine_id: int, user: CurrentUser, db: SessionDep, ctx: CtxDep) -> Response:
+async def machine_sticker(machine_id: int, user: CurrentUser, db: SessionDep, base: PublicUrl) -> Response:
     """One printable sticker for this machine, e.g. right after an usta adds it (KAN-29, KAN-30)."""
     machine = await _qr_machine(db, machine_id, user)
     return Response(
-        qr.sticker_sheet([machine], ctx.settings.public_url),
+        qr.sticker_sheet([machine], base),
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="qr-{machine.id}.pdf"'},
     )

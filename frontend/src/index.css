@@ -60,6 +60,11 @@
   --color-steel-foreground: var(--steel-foreground);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --animate-scan: scan-sweep 1.6s ease-in-out infinite alternate; /* QR viewfinder line: shows the scanner is live */
+  @keyframes scan-sweep {
+    from { top: 8%; }
+    to { top: 92%; }
+  }
 }
 
 @layer base {

@@ -12,7 +12,7 @@ from app.auth.deps import PatronUser
 from app.auth.models import Role, User
 from app.core import storage
 from app.core.schemas import PersonRef, UtcDateTime
-from app.deps import CtxDep, SessionDep
+from app.deps import PublicUrl, SessionDep
 from app.documents.models import Document
 from app.machines import qr
 from app.machines.models import Machine
@@ -147,7 +147,7 @@ async def admin_users(_: PatronUser, db: SessionDep) -> list[AdminUser]:
 
 @router.get("/qr-stickers.pdf")
 async def sticker_pdf(
-    _: PatronUser, db: SessionDep, ctx: CtxDep, ids: Annotated[list[int] | None, Query()] = None
+    _: PatronUser, db: SessionDep, base: PublicUrl, ids: Annotated[list[int] | None, Query()] = None
 ) -> Response:
     """Stickers for the machines the patron picked (`?ids=1&ids=2`), or for every machine (KAN-30)."""
     query = select(Machine).where(Machine.archived_at.is_(None)).order_by(Machine.code)
@@ -155,7 +155,7 @@ async def sticker_pdf(
         query = query.where(Machine.id.in_(ids))
     machines = list(await db.scalars(query))
     return Response(
-        qr.sticker_sheet(machines, ctx.settings.public_url),
+        qr.sticker_sheet(machines, base),
         media_type="application/pdf",
         headers={"Content-Disposition": 'inline; filename="qr-etiketleri.pdf"'},
     )

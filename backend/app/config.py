@@ -16,8 +16,9 @@ class Settings(BaseSettings):
     test_database_url: str = ""  # pytest only; a deployed server does not need it
     secret_key: SecretStr
     uploads_dir: Path = Path("../uploads")
-    # Address phones open from the QR sticker (the VS Code forwarded-port URL when shared).
-    public_url: str = "http://localhost:5173"
+    # Address phones open from the QR sticker. Empty = the address the QR/sticker was downloaded from (e.g. the
+    # VS Code forwarded https URL); set it when stickers are printed from http://localhost.
+    public_url: str = ""
 
     # Gemini (the final answer + summaries only): an API key (AI Studio) or Vertex AI = a Cloud project + region,
     # signed in with `gcloud auth application-default login`. Without it answers say "not found" and documents get

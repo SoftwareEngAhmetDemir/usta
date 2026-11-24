@@ -13,3 +13,7 @@ export const UiReadyContext = createContext<(text: string) => boolean>(() => tru
 
 // true while the page's own (not quiet) UI texts are on their way from the backend: the page shows a skeleton
 export const UiLoadingContext = createContext(false);
+
+// Are page texts queued or on their way right now? Unlike UiLoadingContext it is current before React re-renders,
+// for timers that must not act on a stale `false` (LanguageGate's reveal).
+export const UiBusyNowContext = createContext<() => boolean>(() => false);

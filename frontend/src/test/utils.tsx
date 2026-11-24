@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { OtherPage } from './OtherPage';
 import { AuthProvider, RequireAuth } from '../features/auth';
 import { vi } from 'vitest';
+import { fakeQr } from './fakeQrScanner';
 
 type Json = object | null;
 export type Routes_ = Record<string, Json | ((init: RequestInit | undefined) => Json)>;
@@ -64,13 +65,23 @@ export function renderAuthed(ui: ReactElement, url = '/', pattern = '*'): Render
 }
 
 
-/** A phone browser on https with a back camera; BarcodeDetector keeps seeing `qr` (null = no BarcodeDetector, as on iPhone Safari). */
-export function stubQrCamera(qr: string | null, camera: () => Promise<MediaStream> = async () => ({ getTracks: () => [] }) as unknown as MediaStream) {
+/** A phone browser on https with a back camera that keeps seeing `qr` (null = nothing in view). Needs
+ * `vi.mock('qr-scanner', () => import('<path>/test/fakeQrScanner'))` in the test file. `onScreen: false` = the
+ * viewfinder is still hidden (language skeleton). */
+export function stubQrCamera(
+  qr: string | null,
+  camera: () => Promise<MediaStream> = async () => ({ getTracks: () => [] }) as unknown as MediaStream,
+  onScreen = true,
+) {
   vi.stubGlobal('isSecureContext', true);
   vi.stubGlobal('navigator', { ...navigator, mediaDevices: { getUserMedia: vi.fn(camera) } });
-  if (qr !== null) vi.stubGlobal('BarcodeDetector', class { detect = async () => [{ rawValue: qr }]; });
-  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
-  vi.spyOn(HTMLVideoElement.prototype, 'videoWidth', 'get').mockReturnValue(640);
+  vi.stubGlobal('IntersectionObserver', class {
+    private readonly cb: (entries: { isIntersecting: boolean }[]) => void;
+    constructor(cb: (entries: { isIntersecting: boolean }[]) => void) { this.cb = cb; }
+    observe() { queueMicrotask(() => this.cb([{ isIntersecting: onScreen }])); }
+    disconnect() {}
+  });
+  fakeQr.live = qr;
 }
 
 /** Open the SearchSelect labelled `label` and click the option named `option`. */

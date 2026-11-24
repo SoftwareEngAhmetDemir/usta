@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, expect, it } from 'vitest';
 import { I18nProvider, useT } from '../../../i18n';
 import { holdFetch, mockApi } from '../../../test/utils';
+import { UiBusyNowContext } from '../../../i18n/context';
 import { LanguageGate } from './LanguageGate';
 
 function Page() {
@@ -56,4 +57,19 @@ it('LanguageGate is off in Turkish: the page shows straight away', () => {
   render(gate('tr'));
   expect(screen.getByRole('heading', { name: 'Makine' })).toBeVisible();
   expect(screen.queryByRole('status')).not.toBeInTheDocument();
+});
+
+it('LanguageGate keeps the page hidden when its texts are still queued as the quiet timer fires (slow phone)', async () => {
+  let busy = true; // texts collected by the render, their 30 ms batch not sent yet: `loading` still says false
+  render(
+    <MemoryRouter>
+      <UiBusyNowContext.Provider value={() => busy}>
+        <LanguageGate languageName="العربية" enabled><h1>Makine</h1></LanguageGate>
+      </UiBusyNowContext.Provider>
+    </MemoryRouter>,
+  );
+  await new Promise((r) => setTimeout(r, 300)); // past the 150 ms quiet period
+  expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent('العربية…');
+  busy = false;
 });

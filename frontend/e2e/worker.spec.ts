@@ -108,3 +108,19 @@ test('document opens at the cited page with its summary (KAN-45)', async ({ page
   await expect(page.getByRole('region', { name: 'AI özet' })).toContainText('5,9–6,2 bar');
   await expect(page.getByTitle(/sayfa 37/)).toHaveAttribute('src', '/uploads/docs/pk105.pdf#page=37');
 });
+
+test('scan page: an unknown code shows the "not found" dialog, a known one opens the machine (KAN-29)', async ({ page }) => {
+  await mockBackend(page, { role: 'worker', routes: { 'GET /machines/lookup?code=PK-105': { id: 1 } } });
+  await page.goto('/scan');
+  const code = page.getByLabel(/makine kodunu/);
+  await code.fill('XX-1');
+  await page.getByRole('button', { name: 'Aç' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Makine bulunamadı' });
+  await expect(dialog).toContainText('XX-1');
+  await dialog.getByRole('button', { name: 'Tekrar tara' }).click();
+  await expect(dialog).toBeHidden();
+  await code.fill('pk-105');
+  await page.getByRole('button', { name: 'Aç' }).click();
+  await expect(page).toHaveURL(/\/m\/1$/);
+  await expect(page.getByRole('heading', { name: 'Plazma Kesim Makinesi' })).toBeVisible();
+});
