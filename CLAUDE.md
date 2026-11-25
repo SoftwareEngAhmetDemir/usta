@@ -55,7 +55,7 @@ backend/
 ```
 
 ### Commands
-- Whole app: `./dev.sh` (repo root) starts uvicorn :8000 + Vite :5173 together; Ctrl+C stops both. Open http://localhost:5173. For a phone over the VS Code tunnel use `./dev.sh --phone`: builds the frontend and serves it with `vite preview` on :5173 (same proxy); no hot reload, rerun after frontend changes.
+- Whole app: `./dev.sh` (repo root) starts uvicorn :8000 + Vite :5173 together; Ctrl+C stops both. Open http://localhost:5173. It sets `HF_HUB_OFFLINE=1` (models load from the HF cache, no Hub check); after changing a model name run `HF_HUB_OFFLINE=0 ./dev.sh` once to download it. For a phone over the VS Code tunnel use `./dev.sh --phone`: builds the frontend and serves it with `vite preview` on :5173 (same proxy); no hot reload, rerun after frontend changes.
 - Frontend: `cd frontend && npm run dev | typecheck | lint | test | test:e2e`
 - Backend (venv `backend/.venv`, Python 3.12; setup: `python3.12 -m venv .venv && .venv/bin/pip install -e '.[dev]'`): `cd backend && .venv/bin/uvicorn app.main:app --reload`, `.venv/bin/ruff check .`, `.venv/bin/mypy .`, `.venv/bin/pytest -q`, migrations `.venv/bin/alembic revision --autogenerate -m <msg>` / `.venv/bin/alembic upgrade head`
 - Code graph (graphify): lives in `.claude/graphify-out/` (committed). `.claude/settings.json` sets `GRAPHIFY_OUT=.claude/graphify-out` for Claude sessions; in your own terminal run `GRAPHIFY_OUT=.claude/graphify-out graphify update .` (or `query`, `explain`...). A root `graphify-out/` means a run without it: it is git-ignored, delete it.

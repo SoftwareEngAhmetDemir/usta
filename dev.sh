@@ -12,6 +12,11 @@ cd "$(dirname "$0")"
 # Bring the dev DB to the latest schema first (same as a deploy), so new columns never crash the server.
 (cd backend && .venv/bin/alembic upgrade head) || exit 1
 
+# Local models load from the Hugging Face cache; offline skips the Hub check on every start (the "unauthenticated
+# requests" warning). New or changed model (EMBEDDING_MODEL, WHISPER_MODEL...): run once with `HF_HUB_OFFLINE=0 ./dev.sh`.
+export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
+# Offline, the "Could not reach the Hub ... using cached" notes and "Loading weights" bars are noise; keep them when downloading.
+[ "$HF_HUB_OFFLINE" = 1 ] && export HF_HUB_VERBOSITY="${HF_HUB_VERBOSITY:-error}" HF_HUB_DISABLE_PROGRESS_BARS="${HF_HUB_DISABLE_PROGRESS_BARS:-1}"
 (cd backend && exec .venv/bin/uvicorn app.main:app --reload --port 8000) &
 backend=$!
 # --phone: serve a production build on :5173 (3 files) instead of Vite dev (hundreds of modules). The VS Code tunnel
