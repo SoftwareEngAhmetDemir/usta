@@ -792,9 +792,9 @@
     "semantic_hash": ""
   },
   "dev.sh": {
-    "mtime": 1795479042.0364442,
-    "seen": 1795479769.114523,
-    "ast_hash": "1d5543e735454c8ceedb15edeaf2102b",
+    "mtime": 1795642357.4423475,
+    "seen": 1795644142.762798,
+    "ast_hash": "dd84f50c8b7f87da82a36a3ab003b537",
     "semantic_hash": ""
   },
   "frontend/.oxlintrc.json": {
@@ -2364,27 +2364,27 @@
     "semantic_hash": ""
   },
   "frontend/src/features/recorder/hooks/useCamera.test.ts": {
-    "mtime": 1795114165.0323696,
-    "seen": 1795449826.3373451,
-    "ast_hash": "e1abf115ba82bd0b43184611469a099e",
+    "mtime": 1795644402.784037,
+    "seen": 1795644419.230539,
+    "ast_hash": "b36cba3fd29f1bbb668a64fc4ab172e4",
     "semantic_hash": ""
   },
   "frontend/src/features/recorder/hooks/useCamera.ts": {
-    "mtime": 1795114097.4570444,
-    "seen": 1795449826.337346,
-    "ast_hash": "59dcd8a512fb191a22d95d75a4d7979f",
+    "mtime": 1795644402.7836013,
+    "seen": 1795644419.23054,
+    "ast_hash": "3fab71a1b56acb6cc8bdea88c1085d12",
     "semantic_hash": ""
   },
   "frontend/src/features/recorder/hooks/useRecorder.test.ts": {
-    "mtime": 1795114165.0299282,
-    "seen": 1795449826.337346,
-    "ast_hash": "8ee825567e457ddb93421b6897e2153d",
+    "mtime": 1795644410.3488932,
+    "seen": 1795644419.230541,
+    "ast_hash": "2545329ea8b509ab41ef73ab93835fde",
     "semantic_hash": ""
   },
   "frontend/src/features/recorder/hooks/useRecorder.ts": {
-    "mtime": 1795114097.4590032,
-    "seen": 1795449826.337347,
-    "ast_hash": "07de74e092a5d46312c059677eb8b72e",
+    "mtime": 1795644402.7837305,
+    "seen": 1795644419.2305422,
+    "ast_hash": "ec8060cbff3dc7b7193d1dc5cd4b3ae9",
     "semantic_hash": ""
   },
   "frontend/src/features/recorder/hooks/useVideoUpload.ts": {
@@ -2808,9 +2808,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1795561373.7164905,
-    "seen": 1795561375.908083,
-    "ast_hash": "728150cbe1a064c83798cfabbf536503",
+    "mtime": 1795644417.2329938,
+    "seen": 1795644419.230627,
+    "ast_hash": "954934b927241d33b965dff4e799628c",
     "semantic_hash": ""
   },
   "README.md": {

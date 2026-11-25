@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+// 720p: sharp enough for labels and hands; with RECORDING_BITS (useRecorder) 25 min ≈ 300 MB.
+export const HD = { width: { ideal: 1280 }, height: { ideal: 720 } };
+
 export type Facing = 'environment' | 'user';
 
 function cameraError(e: unknown): string {
@@ -25,7 +28,7 @@ export function useCamera() {
     setError(null);
     current.current?.getTracks().forEach((t) => t.stop());
     try {
-      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: face }, audio: true });
+      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: face, ...HD }, audio: true });
       current.current = s;
       setFacing(face);
       setStream(s);

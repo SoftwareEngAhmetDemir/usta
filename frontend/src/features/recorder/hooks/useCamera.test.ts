@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { useCamera } from './useCamera';
+import { HD, useCamera } from './useCamera';
 
 const track = { stop: vi.fn() };
 const stream = { getTracks: () => [track] } as unknown as MediaStream;
@@ -10,9 +10,9 @@ describe('useCamera', () => {
     vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
     const { result, unmount } = renderHook(() => useCamera());
     await act(() => result.current.start());
-    expect(getUserMedia).toHaveBeenLastCalledWith({ video: { facingMode: 'environment' }, audio: true });
+    expect(getUserMedia).toHaveBeenLastCalledWith({ video: { facingMode: 'environment', ...HD }, audio: true });
     await act(() => result.current.flip());
-    expect(getUserMedia).toHaveBeenLastCalledWith({ video: { facingMode: 'user' }, audio: true });
+    expect(getUserMedia).toHaveBeenLastCalledWith({ video: { facingMode: 'user', ...HD }, audio: true });
     unmount();
     expect(track.stop).toHaveBeenCalled();
   });
