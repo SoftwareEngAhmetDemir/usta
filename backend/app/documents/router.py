@@ -71,6 +71,8 @@ async def delete_document(document_id: int, user: CurrentUser, db: SessionDep, c
     if doc is None:
         raise not_found("Doküman")
     machine = await db.get(Machine, doc.machine_id)
-    if machine is None or not actions(user, machine).upload_document:
+    if machine is None or not actions(user, machine).delete_content:
         raise forbidden()
+    if doc.summary_status == SummaryStatus.preparing:  # its ingestion job is still running
+        raise HTTPException(status.HTTP_409_CONFLICT, "Doküman hâlâ işleniyor; bitince silebilirsiniz.")
     await service.remove_document(ctx, db, doc)

@@ -146,6 +146,7 @@ export interface MachineActions {
   record_maintenance: boolean;
   archive: boolean; // "Makineyi kaldır": the machine's ustas or the patron (KAN-27)
   qr: boolean; // QR image + printable sticker: the machine's ustas or the patron (KAN-29, KAN-30)
+  delete_content: boolean; // trash button on videos and documents (DELETE /videos/{id}, /documents/{id}): the patron only
 }
 
 /** GET /machines?q= : ustas and the patron search every machine (code, name, serial, location). */

@@ -41,7 +41,7 @@ describe('AppRoutes', () => {
   });
 
   it('logs out from the header', async () => {
-    mockApi({ 'GET /auth/me': me('patron'), 'GET /alerts': alertList, 'GET /admin/users': [], 'POST /auth/logout': null });
+    mockApi({ 'GET /auth/me': me('patron'), 'GET /alerts': alertList, 'GET /admin/users?role=worker': [], 'POST /auth/logout': null });
     app('/panel/users');
     await userEvent.click(await screen.findByRole('button', { name: 'Çıkış yap' }));
     expect(await screen.findByRole('heading', { name: 'Giriş' })).toBeInTheDocument();
@@ -49,7 +49,7 @@ describe('AppRoutes', () => {
 
   it('after logout, the next user lands on their own home, not the previous page', async () => {
     mockApi({
-      'GET /auth/me': me('patron'), 'GET /alerts': alertList, 'GET /admin/users': [], 'POST /auth/logout': null,
+      'GET /auth/me': me('patron'), 'GET /alerts': alertList, 'GET /admin/users?role=worker': [], 'POST /auth/logout': null,
       'POST /auth/login': me('technician'), 'GET /me/maintenance': [],
     });
     app('/panel/users');

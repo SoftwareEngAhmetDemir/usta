@@ -8,6 +8,7 @@ import { Thumb } from '../../../../components/Thumb';
 import { formatDate, formatDuration } from '../../../../lib/format';
 import { useT } from '../../../../i18n';
 import type { Translate } from '../../../../i18n';
+import { TrashButton } from '../TrashButton';
 
 const AVAILABILITY: Record<VideoAvailability, [PillTone, (lang: string, t: Translate) => string]> = {
   original: ['info', (_, t) => t('Orijinal')],
@@ -25,7 +26,14 @@ function StatusPill({ video, languageName }: { video: VideoSummary; languageName
   return <Pill tone={tone}>{label(languageName, t)}</Pill>;
 }
 
-export function VideoItem({ video, languageName }: { video: VideoSummary; languageName: string }) {
+interface Props {
+  video: VideoSummary;
+  languageName: string;
+  onDelete?: () => void; // given to the patron: a trash button at the end of a ready video's row
+}
+
+export function VideoItem({ video, languageName, onDelete }: Props) {
+  const t = useT();
   const body = (
     <>
       <Thumb kind="video" wide>
@@ -39,6 +47,13 @@ export function VideoItem({ video, languageName }: { video: VideoSummary; langua
       </span>
     </>
   );
-  if (video.status !== 'ready') return <ListItem>{body}</ListItem>;
-  return <ListItem asChild><Link to={`/videos/${video.id}`}>{body}</Link></ListItem>;
+  if (video.status !== 'ready') return <ListItem>{body}</ListItem>; // still processing: the backend refuses a delete (409)
+  const trash = onDelete && <TrashButton label={`${t('Sil')}: ${video.title}`} onClick={onDelete} />;
+  if (!trash) return <ListItem asChild><Link to={`/videos/${video.id}`}>{body}</Link></ListItem>;
+  return (
+    <ListItem>
+      <Link to={`/videos/${video.id}`} className="flex min-w-0 flex-1 items-center gap-3 text-inherit no-underline">{body}</Link>
+      {trash}
+    </ListItem>
+  );
 }

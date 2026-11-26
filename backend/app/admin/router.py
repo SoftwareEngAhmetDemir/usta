@@ -124,8 +124,10 @@ async def admin_machines(
 
 
 @router.get("/users", response_model=list[AdminUser])
-async def admin_users(_: PatronUser, db: SessionDep) -> list[AdminUser]:
-    users = await db.scalars(select(User).order_by(User.name))
+async def admin_users(_: PatronUser, db: SessionDep, role: Role | None = None) -> list[AdminUser]:
+    """Every user, or one role's (`?role=usta`: the panel's role tabs)."""
+    query = select(User).order_by(User.name)
+    users = await db.scalars(query.where(User.role == role) if role else query)
     machines = await db.scalars(select(Machine).where(Machine.archived_at.is_(None)).order_by(Machine.name))
     by_usta: dict[int, list[PersonRef]] = {}
     for m in machines:

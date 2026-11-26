@@ -20,7 +20,7 @@ describe('MachinePage (KAN-71)', () => {
   });
 
   it('shows empty messages and role actions from the API', async () => {
-    const empty = { ...machinePage, ustas: [], videos: [], external_videos: [], documents: [], maintenance: [], questions: [], actions: { ask: true, record_video: true, upload_document: true, record_maintenance: true, archive: true, qr: true } };
+    const empty = { ...machinePage, ustas: [], videos: [], external_videos: [], documents: [], maintenance: [], questions: [], actions: { ask: true, record_video: true, upload_document: true, record_maintenance: true, archive: true, qr: true, delete_content: true } };
     mockApi({ 'GET /auth/me': me('patron'), 'GET /languages': languages, 'GET /machines/1': empty });
     show();
     for (const msg of ['Henüz video yok.', 'Henüz doküman yok.', 'Henüz bakım kaydı yok.', 'Henüz soru yok.', 'Henüz bağlı usta yok.']) {
@@ -47,6 +47,35 @@ describe('MachinePage (KAN-71)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Evet, kaldır' }));
     expect(await screen.findByText('other page /')).toBeInTheDocument();
     expect(calls.filter((c) => c.method === 'POST' && c.path === '/machines/1/archive')).toHaveLength(1);
+  });
+
+  it('lets the patron delete a video and a document after confirming, then reloads the page', async () => {
+    const page = { ...machinePage, actions: { ...machinePage.actions, delete_content: true } };
+    let deleted = false;
+    const { calls } = mockApi({
+      'GET /auth/me': me('patron'), 'GET /languages': languages,
+      'GET /machines/1': () => (deleted ? { ...page, videos: page.videos.slice(1) } : page),
+      'DELETE /videos/1': () => { deleted = true; return null; },
+      'DELETE /documents/1': null,
+    });
+    show();
+    await userEvent.click(await screen.findByRole('button', { name: 'Sil: Meme ve elektrot değişimi' }));
+    expect(screen.getByRole('dialog', { name: 'Video silinsin mi?' })).toBeInTheDocument();
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
+    await userEvent.click(screen.getByRole('button', { name: 'Evet, sil' }));
+    expect(await screen.findByRole('button', { name: 'Sil: PK-105 Kullanım Kılavuzu' })).toBeInTheDocument();
+    expect(screen.queryByText('Meme ve elektrot değişimi')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Kesim öncesi hava basıncı ayarı/ })).toHaveAttribute('href', '/videos/2');
+    await userEvent.click(screen.getByRole('button', { name: 'Sil: PK-105 Kullanım Kılavuzu' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Evet, sil' }));
+    expect(calls.filter((c) => c.method === 'DELETE').map((c) => c.path)).toEqual(['/videos/1', '/documents/1']);
+  });
+
+  it('shows no trash buttons without the delete_content action (ustas, workers)', async () => {
+    mockApi({ 'GET /auth/me': me('usta'), 'GET /languages': languages, 'GET /machines/1': machinePage });
+    show();
+    await screen.findByRole('heading', { name: 'Plazma Kesim Makinesi' });
+    expect(screen.queryByRole('button', { name: /^Sil:/ })).not.toBeInTheDocument();
   });
 
   it('hides "Makineyi kaldır" without the archive action', async () => {

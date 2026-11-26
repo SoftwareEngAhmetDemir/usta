@@ -15,9 +15,10 @@ interface Props {
   external: ExternalVideo[];
   languageName: string;
   canRecord: boolean;
+  onDelete?: (video: VideoSummary) => void; // the patron's trash button
 }
 
-export function VideoList({ machineId, videos, external, languageName, canRecord }: Props) {
+export function VideoList({ machineId, videos, external, languageName, canRecord, onDelete }: Props) {
   const t = useT();
   const recordLink = canRecord ? (
     <Button asChild size="small"><Link to={`/record?machine=${machineId}`}><Video aria-hidden="true" />{t('Video çek')}</Link></Button>
@@ -30,7 +31,7 @@ export function VideoList({ machineId, videos, external, languageName, canRecord
       ) : (
         <>
           <Card className="gap-0">
-            {videos.map((v) => <VideoItem key={v.id} video={v} languageName={languageName} />)}
+            {videos.map((v) => <VideoItem key={v.id} video={v} languageName={languageName} onDelete={onDelete && (() => onDelete(v))} />)}
             {external.map((v) => <ExternalVideoItem key={`ext-${v.id}`} video={v} />)}
           </Card>
           {recordLink && <div>{recordLink}</div>}

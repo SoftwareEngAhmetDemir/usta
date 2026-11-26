@@ -14,7 +14,7 @@ from app.machines.models import Machine
 from app.machines.permissions import actions
 from app.videos import pipeline
 from app.videos.cleanup import remove_video
-from app.videos.models import UPLOAD_PIPELINE, StepStatus, Video, VideoStep
+from app.videos.models import UPLOAD_PIPELINE, StepStatus, Video, VideoStatus, VideoStep
 from app.videos.service import Preparation, VideoDetail, VideoProcessing, detail, load_steps, preparation, processing
 
 router = APIRouter(tags=["videos"])
@@ -128,6 +128,8 @@ async def delete_video(video_id: int, user: CurrentUser, db: SessionDep, ctx: Ct
     """Delete a video with everything made from it: chunks and vectors, topics, snapshots, subtitles, dubs."""
     video = await _video(db, video_id)
     machine = await db.get(Machine, video.machine_id)
-    if machine is None or not actions(user, machine).record_video:
+    if machine is None or not actions(user, machine).delete_content:
         raise forbidden()
+    if video.status == VideoStatus.processing:  # its job still writes files and vectors: deleting now leaves orphans
+        raise HTTPException(status.HTTP_409_CONFLICT, "Video hâlâ işleniyor; bitince silebilirsiniz.")
     await remove_video(ctx, db, video)

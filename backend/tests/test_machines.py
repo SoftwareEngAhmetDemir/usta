@@ -74,9 +74,9 @@ async def test_actions_depend_on_role_and_assignment(
     my_usta, other_usta = await make_user(Role.usta), await make_user(Role.usta)
     machine = await make_machine(ustas=[my_usta])
     expected = {
-        Role.worker: (True, False, False, False, False, False),
-        Role.technician: (True, False, False, True, False, False),
-        Role.patron: (True, True, True, True, True, True),
+        Role.worker: (True, False, False, False, False, False, False),
+        Role.technician: (True, False, False, True, False, False, False),
+        Role.patron: (True, True, True, True, True, True, True),
     }
     for role, flags in expected.items():
         page = (await (await client_as(await make_user(role))).get(f"/api/machines/{machine.id}")).json()
@@ -87,6 +87,7 @@ async def test_actions_depend_on_role_and_assignment(
     ]
     mine = (await (await client_as(my_usta)).get(f"/api/machines/{machine.id}")).json()["actions"]
     assert mine["archive"] and mine["qr"] and mine["upload_document"]
+    assert not mine["delete_content"]  # deleting videos/documents is the patron's only
     assert not (await (await client_as(other_usta)).get(f"/api/machines/{machine.id}")).json()["actions"]["qr"]
 
 

@@ -42,9 +42,22 @@ describe('patron panel', () => {
     expect(screen.getByText('Yazdırmak için en az bir makine seçin.')).toBeInTheDocument();
   });
 
-  it('lists users and roles (KAN-25, KAN-26)', async () => {
-    mockApi({ 'GET /auth/me': me('patron'), 'GET /admin/users': adminUsers });
-    renderAuthed(<UsersPage />);
-    expect(await screen.findByText('Emre K.')).toBeInTheDocument();
+  it('opens on the İşçi tab and shows one role at a time, filtered by the backend (KAN-25)', async () => {
+    const { calls } = mockApi({
+      'GET /auth/me': me('patron'),
+      'GET /admin/users?role=worker': [{ ...adminUsers[1]!, id: 9, name: 'Ali İşçi', role: 'worker' as const }],
+      'GET /admin/users?role=usta': adminUsers.filter((u) => u.role === 'usta'),
+      'GET /admin/users?role=patron': [],
+    });
+    renderAuthed(<UsersPage />, '/panel/users');
+    expect(await screen.findByText('Ali İşçi')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Teknisyen' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tümü' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Usta' }));
+    expect(await screen.findByRole('link', { name: 'Mehmet Usta' })).toBeInTheDocument();
+    expect(screen.queryByText('Ali İşçi')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Patron' }));
+    expect(await screen.findByText('Bu rolde kullanıcı yok.')).toBeInTheDocument();
+    expect(calls.some((c) => c.path === '/admin/users')).toBe(false);
   });
 });

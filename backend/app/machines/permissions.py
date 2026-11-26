@@ -13,6 +13,7 @@ class MachineActions(BaseModel):
     record_maintenance: bool
     archive: bool
     qr: bool  # QR image + printable sticker: its ustas and the patron
+    delete_content: bool  # delete a video or document (with everything made from it): the patron only
 
 
 def is_usta_of(user: User, machine: Machine) -> bool:
@@ -28,6 +29,7 @@ def actions(user: User, machine: Machine) -> MachineActions:
         record_maintenance=patron or user.role == Role.technician,
         archive=machine.archived_at is None and (patron or is_usta_of(user, machine)),
         qr=patron or is_usta_of(user, machine),
+        delete_content=patron,
     )
 
 

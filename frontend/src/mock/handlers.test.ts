@@ -37,7 +37,23 @@ describe('mock backend', () => {
     expect(call(loggedIn('isci'), 'GET', '/machines/99').status).toBe(404);
   });
 
-  it('answers known questions and sends unknown ones to the ustas, who can answer', () => {
+  it('filters users by role for the panel tabs', () => {
+    const db = loggedIn('patron');
+    expect(call(db, 'GET', '/admin/users?role=technician').body).toEqual([expect.objectContaining({ name: 'Emre K.' })]);
+    expect(call(db, 'GET', '/admin/users').body).toHaveLength(2);
+  });
+
+  it('lets only the patron delete a video or document from a machine page', () => {
+    expect(call(loggedIn('usta'), 'DELETE', '/videos/1').status).toBe(403);
+    const db = loggedIn('patron');
+    expect(call(db, 'GET', '/machines/1').body).toMatchObject({ actions: { delete_content: true } });
+    expect(call(db, 'DELETE', '/videos/1').status).toBe(204);
+    expect(call(db, 'DELETE', '/documents/1').status).toBe(204);
+    expect(db.pages[1]?.videos.map((v) => v.id)).not.toContain(1);
+    expect(db.pages[1]?.documents.map((d) => d.id)).not.toContain(1);
+  });
+
+    it('answers known questions and sends unknown ones to the ustas, who can answer', () => {
     const db = loggedIn('isci');
     expect(call(db, 'POST', '/machines/1/ask', { question: 'Elektrot ne zaman?' }).body).toMatchObject({ status: 'answered' });
     expect(call(db, 'POST', '/machines/1/ask', { question: 'Çapak var' }).body).toMatchObject({ status: 'not_found' });

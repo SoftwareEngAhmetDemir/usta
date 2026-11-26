@@ -83,3 +83,24 @@ async def test_tts_joins_pieces_and_returns_a_readable_wav() -> None:
     with wave.open(io.BytesIO(wav)) as w:  # real header: the dub timing reads its duration
         assert (w.getframerate(), w.getnchannels()) == (24_000, 1)
         assert w.getnframes() / w.getframerate() > 0.5
+
+
+async def test_translator_pauses_when_google_throttles(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.ai.google_free.asyncio.sleep", _no_sleep)
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.params["q"])
+        return httpx.Response(429)
+
+    t = GoogleFreeTranslator(httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    with pytest.raises(AIUnavailableError):
+        await t.translate(["Merhaba"], "tr", "en")
+    assert len(calls) == 2  # a second 429 in a row: no more retries
+    with pytest.raises(AIUnavailableError, match="yoğun"):
+        await t.translate(["Nozul", "Elektrot"], "tr", "en")
+    assert len(calls) == 2  # during the pause nothing is sent at all
+
+
+async def _no_sleep(_: float) -> None:
+    return None

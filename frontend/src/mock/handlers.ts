@@ -21,10 +21,10 @@ const fail = (status: number, detail: string): MockResponse => ({ status, body: 
 const now = () => new Date().toISOString();
 
 const ACTIONS: Record<Role, MachineActions> = {
-  worker: { ask: true, record_video: false, upload_document: false, record_maintenance: false, archive: false, qr: false },
-  usta: { ask: true, record_video: true, upload_document: true, record_maintenance: false, archive: true, qr: true },
-  technician: { ask: true, record_video: false, upload_document: false, record_maintenance: true, archive: false, qr: false },
-  patron: { ask: true, record_video: true, upload_document: true, record_maintenance: true, archive: true, qr: true },
+  worker: { ask: true, record_video: false, upload_document: false, record_maintenance: false, archive: false, qr: false, delete_content: false },
+  usta: { ask: true, record_video: true, upload_document: true, record_maintenance: false, archive: true, qr: true, delete_content: false },
+  technician: { ask: true, record_video: false, upload_document: false, record_maintenance: true, archive: false, qr: false, delete_content: false },
+  patron: { ask: true, record_video: true, upload_document: true, record_maintenance: true, archive: true, qr: true, delete_content: true },
 };
 const PREP_LABELS = ['Çeviri', 'Altyazı', 'Ses ayrıştırma', 'Dublaj (ustanın sesiyle)', 'Zamanlama ve miksaj'];
 const PROC_LABELS = ['Yüklendi', 'Sıkıştırılıyor (H.264)', 'Konuşma metne dönüştürülüyor', 'Aramaya ekleniyor'];
@@ -151,6 +151,16 @@ export function handle(db: MockDb, req: MockRequest): MockResponse {
       db.machines = db.machines.filter((m) => m.id !== id); // page stays: history is kept
       return ok(null);
     }
+    case 'DELETE /videos/:id':
+    case 'DELETE /documents/:id': {
+      if (!ACTIONS[me.role].delete_content) return fail(403, 'Bu işlem için yetkiniz yok.');
+      const videos = route.startsWith('DELETE /videos');
+      for (const page of Object.values(db.pages)) {
+        if (videos) page.videos = page.videos.filter((v) => v.id !== id);
+        else page.documents = page.documents.filter((d) => d.id !== id);
+      }
+      return ok(null);
+    }
     case 'GET /machines/:id': {
       const page = db.pages[id];
       return page ? ok({ ...page, actions: ACTIONS[me.role] }) : fail(404, 'Makine bulunamadı.');
@@ -247,7 +257,10 @@ export function handle(db: MockDb, req: MockRequest): MockResponse {
       const pages = Object.values(db.pages);
       return ok({ stats: { machines: db.machines.length, videos: pages.reduce((n, pg) => n + pg.videos.length, 0), documents: pages.reduce((n, pg) => n + pg.documents.length, 0), answered_questions: pages.reduce((n, pg) => n + pg.questions.length, 0), maintenance_records: pages.reduce((n, pg) => n + pg.maintenance.length, 0) }, machines: rows });
     }
-    case 'GET /admin/users': return ok(fx.adminUsers);
+    case 'GET /admin/users': { // ?role= like the backend
+      const role = query.get('role');
+      return ok(role ? fx.adminUsers.filter((u) => u.role === role) : fx.adminUsers);
+    }
     case 'POST /machines/:id/documents': {
       const page = db.pages[id];
       if (!page) return fail(404, 'Makine bulunamadı.');

@@ -19,7 +19,8 @@ const defaults = (): Routes => ({
   'GET /me/machines': [{ id: 1, code: 'PK-105', name: 'Plazma Kesim Makinesi' }],
   'GET /me/maintenance': [fx.maintenanceRecord],
   'GET /admin/machines?q=': fx.adminMachines,
-  'GET /admin/users': fx.adminUsers,
+  'GET /admin/users?role=worker': [],
+  'GET /admin/users?role=usta': fx.adminUsers.filter((u) => u.role === 'usta'),
   'GET /machines?q=': fx.adminMachines.machines.map(({ id, code, name, location }) => ({ id, code, name, location })),
   'POST /auth/logout': null,
 });

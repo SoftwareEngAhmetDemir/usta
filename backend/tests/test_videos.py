@@ -292,6 +292,9 @@ async def test_delete_video_removes_everything_made_from_it(
     machine = await make_machine(ustas=[usta_user])
     usta = await client_as(usta_user)
     vid = (await _upload(usta, machine.id, sample_video)).id
+    patron = await client_as(await make_user(Role.patron))
+    still_processing = await patron.delete(f"/api/videos/{vid}")  # its job has not run yet
+    assert still_processing.status_code == 409 and "işleniyor" in still_processing.json()["detail"]
     await ctx.jobs.drain(ctx)
     await usta.post(f"/api/videos/{vid}/languages/en")
     await ctx.jobs.drain(ctx)
@@ -300,7 +303,8 @@ async def test_delete_video_removes_everything_made_from_it(
 
     worker = await client_as(await make_user())
     assert (await worker.delete(f"/api/videos/{vid}")).status_code == 403
-    assert (await usta.delete(f"/api/videos/{vid}")).status_code == 204
+    assert (await usta.delete(f"/api/videos/{vid}")).status_code == 403  # even the machine's own usta
+    assert (await patron.delete(f"/api/videos/{vid}")).status_code == 204
     assert await db.scalar(select(func.count()).where(Chunk.video_id == vid)) == 0
     assert await db.scalar(select(func.count()).where(Snapshot.video_id == vid)) == 0
     assert await db.scalar(select(func.count()).where(DubbedVersion.video_id == vid)) == 0

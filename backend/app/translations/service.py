@@ -87,6 +87,13 @@ def _unframed(text: str, translated: str) -> str:
     return text  # frame lost: show Turkish rather than a wrong label
 
 
+async def stored_ui_texts(db: AsyncSession, texts: list[str], target: str) -> dict[str, str]:
+    """{Turkish UI text: its translation} for those already stored; never calls the translator."""
+    found = await stored(db, [(_framed(t), DEFAULT_LANGUAGE) for t in texts], target)
+    hits = ((t, found.get(source_hash(_framed(t), DEFAULT_LANGUAGE))) for t in texts)
+    return {t: _unframed(t, hit) for t, hit in hits if hit is not None}
+
+
 async def ui_texts(db: AsyncSession, translator: Translator, texts: list[str], target: str) -> dict[str, str]:
     """{Turkish UI text: its translation} for what could be translated: new texts are machine-translated once and
     stored, so later users (and pages) get them from the table. A text left out is shown in Turkish."""
@@ -100,14 +107,20 @@ async def ui_texts(db: AsyncSession, translator: Translator, texts: list[str], t
             translated = await translate(db, translator, [_framed(t) for t in batch], DEFAULT_LANGUAGE, target)
         except AIUnavailableError as e:
             log.warning("UI texts not translated to %s: %s", target, e)
-            rest = texts[start:]
-            found = await stored(db, [(_framed(t), DEFAULT_LANGUAGE) for t in rest], target)
-            for t in rest:
-                if (hit := found.get(source_hash(_framed(t), DEFAULT_LANGUAGE))) is not None:
-                    out[t] = _unframed(t, hit)
+            out.update(await stored_ui_texts(db, texts[start:], target))
             break
         out.update((t, _unframed(t, tr)) for t, tr in zip(batch, translated, strict=True))
     return out
+
+
+async def change_language(ctx: AppContext, db: AsyncSession, user: User, language: str) -> None:
+    """The user's site language (content + UI, the app and /admin); earlier questions, answers and summaries are
+    then translated into it in the background. `language` must be one of LANGUAGES."""
+    changed = user.language != language
+    user.language = language
+    await db.commit()
+    if changed and language != DEFAULT_LANGUAGE:
+        await ctx.jobs.enqueue(BACKFILL_JOB, {"language": language})
 
 
 async def languages_in_use(db: AsyncSession) -> list[str]:

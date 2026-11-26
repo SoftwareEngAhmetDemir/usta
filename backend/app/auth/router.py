@@ -7,9 +7,9 @@ from app.auth import service
 from app.auth.deps import SESSION_COOKIE, CurrentUser
 from app.auth.models import User
 from app.auth.schemas import LoginIn, Me, RegisterIn
-from app.core.languages import DEFAULT_LANGUAGE, LANGUAGES, Language
+from app.core.languages import LANGUAGES, Language
 from app.deps import CtxDep, SessionDep
-from app.translations.service import BACKFILL_JOB
+from app.translations.service import change_language
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -81,9 +81,5 @@ async def set_language(body: LanguageIn, user: CurrentUser, db: SessionDep, ctx:
     summaries are translated into it in the background."""
     if body.language not in LANGUAGES:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Bu dil desteklenmiyor.")
-    changed = user.language != body.language
-    user.language = body.language
-    await db.commit()
-    if changed and body.language != DEFAULT_LANGUAGE:
-        await ctx.jobs.enqueue(BACKFILL_JOB, {"language": body.language})
+    await change_language(ctx, db, user, body.language)
     return Me.model_validate(user)

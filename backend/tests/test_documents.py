@@ -231,10 +231,13 @@ async def test_delete_document_removes_chunks_vectors_and_file(
     machine = await make_machine(ustas=[usta_user])
     usta = await client_as(usta_user)
     doc_id = await _upload(usta, machine.id, "k.pdf", two_page_pdf(), "application/pdf")
+    patron = await client_as(await make_user(Role.patron))
+    assert (await patron.delete(f"/api/documents/{doc_id}")).status_code == 409  # still being ingested
     await ctx.jobs.drain(ctx)
     assert ai.vectors.query(ai.embedder.embed_query("elektrot"), machine.id, 10)
     assert (await (await client_as(await make_user())).delete(f"/api/documents/{doc_id}")).status_code == 403
-    assert (await usta.delete(f"/api/documents/{doc_id}")).status_code == 204
+    assert (await usta.delete(f"/api/documents/{doc_id}")).status_code == 403  # even the machine's own usta
+    assert (await patron.delete(f"/api/documents/{doc_id}")).status_code == 204
     assert await db.scalar(select(func.count()).where(Chunk.document_id == doc_id)) == 0
     assert ai.vectors.query(ai.embedder.embed_query("elektrot"), machine.id, 10) == []
     assert not storage.abs_path(f"docs/{doc_id}").exists()

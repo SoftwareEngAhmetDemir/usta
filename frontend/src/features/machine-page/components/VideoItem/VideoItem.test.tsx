@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import type { VideoSummary } from '../../../../api';
 import { VideoItem } from './VideoItem';
@@ -19,5 +20,15 @@ describe('VideoItem', () => {
     r({ ...v, status: 'processing' });
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(screen.getByText('İşleniyor')).toBeInTheDocument();
+  });
+  it('adds a trash button beside a ready video\'s link, none while processing', async () => {
+    const onDelete = vi.fn();
+    const { unmount } = render(<MemoryRouter><VideoItem video={v} languageName="Türkçe" onDelete={onDelete} /></MemoryRouter>);
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/videos/3');
+    await userEvent.click(screen.getByRole('button', { name: 'Sil: Meme ve elektrot değişimi' }));
+    expect(onDelete).toHaveBeenCalledOnce();
+    unmount();
+    render(<MemoryRouter><VideoItem video={{ ...v, status: 'processing' }} languageName="Türkçe" onDelete={onDelete} /></MemoryRouter>);
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });

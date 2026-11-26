@@ -1,3 +1,4 @@
+import { Link } from 'react-router';
 import type { AdminUser } from '../../../../api';
 import { Pill } from '../../../../components/Pill';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../components/ui/table';
@@ -16,7 +17,10 @@ export function UserTable({ users }: { users: AdminUser[] }) {
         <TableBody>
           {users.map((u) => (
             <TableRow key={u.id}>
-              <TableCell><b>{u.name}</b></TableCell>
+              <TableCell>
+                {/* An usta opens their profile: machines → machine page with videos and documents. */}
+                {u.role === 'usta' ? <Link className="font-bold text-steel underline underline-offset-2" to={`/ustas/${u.id}`}>{u.name}</Link> : <b>{u.name}</b>}
+              </TableCell>
               <TableCell><Pill tone="info">{t(ROLE_LABEL[u.role])}</Pill></TableCell>
               <TableCell className="whitespace-normal">
                 {u.authorized ? (
